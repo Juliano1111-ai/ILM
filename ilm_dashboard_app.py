@@ -526,12 +526,27 @@ def load_google_sheets_data():
     """Load data from Google Sheets - PRIMARY DATA SOURCE"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
         
-        if not os.path.exists(json_keyfile_path):
-            st.error(f"❌ Credentials file not found: {json_keyfile_path}")
-            st.info("📝 Place your Google service account JSON file in the same directory as this app")
-            return None, None, "Credentials file missing"
+        # Try Streamlit Cloud secrets first, then fall back to local JSON file
+        try:
+            if "gcp_service_account" in st.secrets:
+                # Running on Streamlit Cloud - use secrets
+                import json
+                creds_dict = dict(st.secrets["gcp_service_account"])
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+                client = gspread.authorize(creds)
+            else:
+                # Running locally - use JSON file
+                json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
+                if not os.path.exists(json_keyfile_path):
+                    st.error(f"❌ Credentials file not found: {json_keyfile_path}")
+                    st.info("📝 Place your Google service account JSON file in the same directory as this app")
+                    return None, None, "Credentials file missing"
+                creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
+                client = gspread.authorize(creds)
+        except Exception as e:
+            st.error(f"❌ Authentication error: {str(e)}")
+            return None, None, f"Auth error: {str(e)}"
         
         creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
         client = gspread.authorize(creds)
