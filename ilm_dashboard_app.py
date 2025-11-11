@@ -5,7 +5,7 @@
 # Copyright (c) 2024-2025 Geo-INQUIRE Project
 # University of Bergen, Norway
 #
-# Developed by: Juliano and Claude AI Assistant
+# Developed by: Juliano Ramanantsoa (With AI assistance)
 # Project: Geo-INQUIRE - Implementation Level Matrix (ILM) Dashboard
 # Purpose: Interactive visualization and analytics for Virtual Access (VA) and 
 #          Transnational Access (TA) project data
@@ -547,9 +547,6 @@ def load_google_sheets_data():
         except Exception as e:
             st.error(f"❌ Authentication error: {str(e)}")
             return None, None, f"Auth error: {str(e)}"
-        
-        creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
-        client = gspread.authorize(creds)
         
         # Use the correct spreadsheet URL
         sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=1373546546#gid=1373546546"
@@ -2522,7 +2519,6 @@ elif selected == "Data":
 elif selected == "Contact":
     st.markdown("<span class='small'>Home ▸ Contact</span>", unsafe_allow_html=True)
     st.header("Contact")
-    st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
+    st.write("• Conception: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
 
-    
