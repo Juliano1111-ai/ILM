@@ -5,7 +5,7 @@
 # Copyright (c) 2024-2025 Geo-INQUIRE Project
 # University of Bergen, Norway
 #
-# Developed by: Juliano Ramanantsoa (With AI assistance)
+# Developed by: Juliano Ramanantsoa (Assisted by Claude)
 # Project: Geo-INQUIRE - Implementation Level Matrix (ILM) Dashboard
 # Purpose: Interactive visualization and analytics for Virtual Access (VA) and 
 #          Transnational Access (TA) project data
@@ -20,7 +20,7 @@
 # License: Internal use - Geo-INQUIRE Project
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
-# Version: 2.0
+# Version: 1.0
 # Last Updated: November 11, 2025
 #
 # =====================================================================================
@@ -2191,28 +2191,28 @@ if selected == "KPI":
         
         # Load raw data to access KPI columns by index
         try:
-            # Determine data source
-            try:
-                # Try Google Sheets first
-                scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            # Use Google Sheets via Streamlit secrets (works on cloud) or local JSON
+            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            
+            # Try Streamlit Cloud secrets first, then fall back to local JSON file
+            if "gcp_service_account" in st.secrets:
+                # Running on Streamlit Cloud - use secrets
+                creds_dict = dict(st.secrets["gcp_service_account"])
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            else:
+                # Running locally - use JSON file
                 json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
-                
-                if os.path.exists(json_keyfile_path):
-                    creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
-                    client = gspread.authorize(creds)
-                    sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=1373546546#gid=1373546546"
-                    spreadsheet = client.open_by_url(sheet_url)
-                    worksheet_va = spreadsheet.worksheet("ILM_Connector")
-                    data_va = worksheet_va.get_all_values()
-                    df_raw = pd.DataFrame(data_va[4:], columns=data_va[3])
-                else:
-                    # Fall back to Excel
-                    excel_path = "ILM_Python_2.xlsx"
-                    df_raw = pd.read_excel(excel_path, sheet_name='ILM_Connector', header=3, skiprows=[4])
-            except:
-                # If Google Sheets fails, use Excel
-                excel_path = "ILM_Python_2.xlsx"
-                df_raw = pd.read_excel(excel_path, sheet_name='ILM_Connector', header=3, skiprows=[4])
+                if not os.path.exists(json_keyfile_path):
+                    st.error("❌ Credentials not found. Cannot load KPI data.")
+                    raise Exception("Credentials missing")
+                creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
+            
+            client = gspread.authorize(creds)
+            sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=1373546546#gid=1373546546"
+            spreadsheet = client.open_by_url(sheet_url)
+            worksheet_va = spreadsheet.worksheet("ILM_Connector")
+            data_va = worksheet_va.get_all_values()
+            df_raw = pd.DataFrame(data_va[4:], columns=data_va[3])
             
             # ==================== KPI 1: USAGE LOGGING SYSTEM ====================
             # Column 35 (AJ): Does your installation have Usage Logging system in place?
