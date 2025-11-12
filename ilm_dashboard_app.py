@@ -20,8 +20,9 @@
 # License: Internal use - Geo-INQUIRE Project
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
-# Version: 1.0
+# Version: 2.0
 # Last Updated: November 11, 2025
+# Contact: heriniaina.j.ramanantsoa@uib.no
 #
 # =====================================================================================
 # INSTALLATION REQUIREMENTS:
@@ -2214,39 +2215,78 @@ if selected == "KPI":
             data_va = worksheet_va.get_all_values()
             df_raw = pd.DataFrame(data_va[4:], columns=data_va[3])
             
-            # ==================== KPI 1: USAGE LOGGING SYSTEM ====================
+                        # ==================== IMPROVED KPI CODE ====================
+
+            # ==================== KPI 1: USAGE LOGGING SYSTEM (UPDATED) ====================
             # Column 35 (AJ): Does your installation have Usage Logging system in place?
-            col_35 = df_raw.iloc[:, 35]  # Usage Logging (yes/no)
-            
+            # Values: YES, NO, Partially, In progress
+            col_35 = df_raw.iloc[:, 35]  # Usage Logging
+
             st.subheader("🔍 KPI-1: Usage Logging System")
             st.caption("Tracks installations with active usage logging capabilities")
-            
-            # Calculate usage logging statistics
+
+            # Calculate usage logging statistics (handles all 4 categories)
             usage_logging_counts = col_35.value_counts()
-            
+
+            # Normalize different case variations
+            yes_count = (
+                usage_logging_counts.get('YES', 0) + 
+                usage_logging_counts.get('yes', 0) + 
+                usage_logging_counts.get('Yes', 0)
+            )
+            no_count = (
+                usage_logging_counts.get('NO', 0) + 
+                usage_logging_counts.get('no', 0) + 
+                usage_logging_counts.get('No', 0)
+            )
+            partially_count = (
+                usage_logging_counts.get('Partially', 0) + 
+                usage_logging_counts.get('partially', 0) + 
+                usage_logging_counts.get('PARTIALLY', 0)
+            )
+            in_progress_count = (
+                usage_logging_counts.get('In progress', 0) + 
+                usage_logging_counts.get('in progress', 0) + 
+                usage_logging_counts.get('IN PROGRESS', 0)
+            )
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
                 # Display metrics
                 total_installations = len(col_35.dropna())
-                yes_count = usage_logging_counts.get('YES', 0) + usage_logging_counts.get('yes', 0) + usage_logging_counts.get('Yes', 0)
-                no_count = usage_logging_counts.get('NO', 0) + usage_logging_counts.get('no', 0) + usage_logging_counts.get('No', 0)
-                
+    
                 st.metric("Total Installations", total_installations)
-                st.metric("With Usage Logging", yes_count, 
-                         delta=f"{yes_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                st.metric("Without Usage Logging", no_count)
-            
+    
+                # Show all 4 categories
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("✅ Fully Implemented", yes_count, 
+                             delta=f"{yes_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
+                    st.metric("🟡 Partially", partially_count,
+                             delta=f"{partially_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
+                with col_b:
+                    st.metric("🔄 In Progress", in_progress_count,
+                             delta=f"{in_progress_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
+                    st.metric("❌ Not Implemented", no_count,
+                             delta=f"{no_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
+
             with col2:
-                # Create pie chart
+                # Create enhanced pie chart with 4 categories
+                labels = ['Fully Implemented', 'In Progress', 'Partially', 'Not Implemented']
+                values = [yes_count, in_progress_count, partially_count, no_count]
+                colors = [COLORS['success'], COLORS['info'], COLORS['warning'], COLORS['danger']]
+    
                 fig = go.Figure(data=[go.Pie(
-                    labels=['With Logging', 'Without Logging'],
-                    values=[yes_count, no_count],
+                    labels=labels,
+                    values=values,
                     hole=0.4,
-                    marker=dict(colors=[COLORS['success'], COLORS['danger']]),
-                    textfont=dict(size=14, family=FONT_FAMILY)
+                    marker=dict(colors=colors),
+                    textfont=dict(size=14, family=FONT_FAMILY),
+                    textinfo='label+percent',
+                    hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
                 )])
-                
+    
                 fig.update_layout(
                     title=dict(
                         text="<b>Usage Logging System Distribution</b>",
@@ -2258,163 +2298,155 @@ if selected == "KPI":
                     font=dict(family=FONT_FAMILY)
                 )
                 st.plotly_chart(fig, use_container_width=True)
-            
-            # ==================== KPI 2: NUMBER OF USERS SERVED ====================
-            # Column 37 (AL): Number of users served
+
+            # Summary text
+            implementation_rate = ((yes_count + partially_count) / total_installations * 100) if total_installations > 0 else 0
+            st.caption(f"📊 **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
+
             st.markdown("---")
-            st.subheader("👥 KPI-3: Number of Users Served")
-            st.caption("Distribution of users across all installations")
-            
-            col_37 = df_raw.iloc[:, 37]  # Number of users served
-            
+
+            # ==================== KPI 2: ACCESSIBLE DATASETS ====================
+            # Column 37: Total data items/records
+            # Column 39 (AN): Datasets at start or current datasets
+            # Column 40 (AO): New datasets or volume
+            st.subheader("📚 KPI-2: Accessible Datasets")
+            st.caption("Tracks the number of datasets and data records available through installations")
+
+            col_37 = df_raw.iloc[:, 37]  # Total data items/records
+            col_39 = df_raw.iloc[:, 39]  # Datasets (seems to be at start or total)
+            col_40 = df_raw.iloc[:, 40]  # New datasets or additional info
+
+            # Convert to numeric
+            data_items = pd.to_numeric(col_37, errors='coerce').dropna()
+            datasets_col_39 = pd.to_numeric(col_39, errors='coerce').dropna()
+            datasets_col_40 = pd.to_numeric(col_40, errors='coerce').dropna()
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                # Calculate user statistics
-                users_served = pd.to_numeric(col_37, errors='coerce').dropna()
-                
-                if len(users_served) > 0:
-                    st.metric("Total Users Served", f"{int(users_served.sum()):,}")
-                    st.metric("Average per Installation", f"{users_served.mean():.0f}")
-                    st.metric("Median Users", f"{users_served.median():.0f}")
-                    st.metric("Max Users (Single Installation)", f"{int(users_served.max()):,}")
-                else:
-                    st.info("No user data available")
-            
+                # Display dataset metrics
+                st.markdown("**Dataset Statistics:**")
+    
+                if len(data_items) > 0:
+                    st.metric("🗂️ Total Data Items/Records", f"{int(data_items.sum()):,}",
+                             help="Total number of individual data records across all installations")
+                    st.metric("📊 Average per Installation", f"{data_items.mean():.0f}",
+                             help="Average data items per installation")
+    
+                if len(datasets_col_39) > 0:
+                    st.metric("📚 Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
+                             help="Total number of distinct datasets")
+                    st.metric("📈 Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
+
             with col2:
-                # Create histogram
-                if len(users_served) > 0:
-                    fig = go.Figure(data=[go.Histogram(
-                        x=users_served,
-                        nbinsx=20,
+                # Create bar chart comparing installations
+                if len(data_items) > 0:
+                    # Top 10 installations by data items
+                    top_installations = data_items.nlargest(10)
+        
+                    fig = go.Figure(data=[go.Bar(
+                        x=[f"Installation {i+1}" for i in range(len(top_installations))],
+                        y=top_installations.values,
                         marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
-                        name='Installations'
+                        text=[f"{int(v):,}" for v in top_installations.values],
+                        textposition='outside',
+                        textfont=dict(size=10, family=FONT_FAMILY)
                     )])
-                    
+        
                     fig.update_layout(
                         title=dict(
-                            text="<b>Distribution of Users Served</b>",
+                            text="<b>Top 10 Installations by Data Items</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        xaxis_title="<b>Number of Users</b>",
-                        yaxis_title="<b>Number of Installations</b>",
+                        xaxis_title="<b>Installation</b>",
+                        yaxis_title="<b>Number of Data Items</b>",
                         height=400,
+                        showlegend=False,
+                        font=dict(family=FONT_FAMILY),
+                        yaxis=dict(type='log')  # Log scale for better visualization
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+            # Additional visualization: Distribution of datasets
+            if len(datasets_col_39) > 0:
+                st.markdown("---")
+                st.markdown("**Dataset Distribution Analysis:**")
+    
+                col1, col2 = st.columns(2)
+    
+                with col1:
+                    # Histogram of dataset counts
+                    fig = go.Figure(data=[go.Histogram(
+                        x=datasets_col_39,
+                        nbinsx=20,
+                        marker=dict(color=COLORS['blue_palette'][2], line=dict(color='white', width=1)),
+                        name='Installations'
+                    )])
+        
+                    fig.update_layout(
+                        title=dict(
+                            text="<b>Distribution of Dataset Counts</b>",
+                            font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
+                        ),
+                        xaxis_title="<b>Number of Datasets</b>",
+                        yaxis_title="<b>Number of Installations</b>",
+                        height=350,
                         showlegend=False,
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-            
-            # ==================== KPI 3: DATASETS - START VS NEW ====================
-            # Columns: AN (39), AO (40), AQ (42), AR (43)
-            st.markdown("---")
-            st.subheader("📚 Accessible Datasets and New Datasets")
-            st.caption("Comparison of datasets at project start versus new datasets added")
-            
-            # Extract dataset columns
-            col_39 = df_raw.iloc[:, 39]  # Datasets at start
-            col_40 = df_raw.iloc[:, 40]  # Volume at start
-            col_42 = df_raw.iloc[:, 42]  # New datasets
-            col_43 = df_raw.iloc[:, 43]  # New volume
-            
-            # Convert to numeric
-            datasets_at_start = pd.to_numeric(col_39, errors='coerce').dropna()
-            volume_at_start = pd.to_numeric(col_40, errors='coerce').dropna()
-            new_datasets = pd.to_numeric(col_42, errors='coerce').dropna()
-            new_volume = pd.to_numeric(col_43, errors='coerce').dropna()
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Display metrics
-                st.markdown("**At Project Start:**")
-                st.metric("Total Datasets", f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "N/A")
-                st.metric("Total Volume (TB)", f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "N/A")
-                
-                st.markdown("**New Datasets:**")
-                st.metric("New Datasets Added", f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "N/A")
-                st.metric("New Volume (TB)", f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "N/A")
-            
-            with col2:
-                # Create grouped bar chart
-                if len(datasets_at_start) > 0 or len(new_datasets) > 0:
-                    fig = go.Figure()
-                    
-                    # Add bars for datasets at start
-                    fig.add_trace(go.Bar(
-                        name='Datasets at Start',
-                        x=['Count', 'Volume (TB)'],
-                        y=[datasets_at_start.sum() if len(datasets_at_start) > 0 else 0, 
-                           volume_at_start.sum() if len(volume_at_start) > 0 else 0],
-                        marker=dict(color=COLORS['blue_palette'][0]),
-                        text=[f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "0", 
-                              f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "0"],
-                        textposition='auto',
-                        textfont=dict(size=12, family=FONT_FAMILY)
-                    ))
-                    
-                    # Add bars for new datasets
-                    fig.add_trace(go.Bar(
-                        name='New Datasets',
-                        x=['Count', 'Volume (TB)'],
-                        y=[new_datasets.sum() if len(new_datasets) > 0 else 0, 
-                           new_volume.sum() if len(new_volume) > 0 else 0],
+    
+                with col2:
+                    # Box plot showing dataset distribution
+                    fig = go.Figure(data=[go.Box(
+                        y=datasets_col_39,
                         marker=dict(color=COLORS['success']),
-                        text=[f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "0", 
-                              f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "0"],
-                        textposition='auto',
-                        textfont=dict(size=12, family=FONT_FAMILY)
-                    ))
-                    
+                        name='Dataset Count',
+                        boxmean='sd'  # Show mean and standard deviation
+                    )])
+        
                     fig.update_layout(
                         title=dict(
-                            text="<b>Datasets: Start vs New</b>",
+                            text="<b>Dataset Count Statistics</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        xaxis_title="<b>Metric Type</b>",
-                        yaxis_title="<b>Value</b>",
-                        barmode='group',
-                        height=400,
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                        yaxis_title="<b>Number of Datasets</b>",
+                        height=350,
+                        showlegend=False,
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-            
-            # ==================== DETAILED KPI SUMMARY TABLE ====================
+
+            # Summary metrics table
             st.markdown("---")
-            st.subheader("📋 Detailed KPI Summary")
-            
-            # Create summary dataframe
+            st.subheader("📊 KPI Summary Table")
+
             kpi_summary = pd.DataFrame({
-                'Metric': [
-                    'Installations with Usage Logging',
-                    'Total Users Served',
-                    'Datasets at Start',
-                    'Volume at Start (TB)',
-                    'New Datasets',
-                    'New Volume (TB)',
-                    'Total Datasets',
-                    'Total Volume (TB)'
+                'KPI Metric': [
+                    'Usage Logging - Fully Implemented',
+                    'Usage Logging - In Progress',
+                    'Usage Logging - Partially',
+                    'Usage Logging - Not Implemented',
+                    'Total Data Items/Records',
+                    'Total Datasets Available',
+                    'Installations with Data',
+                    'Average Datasets per Installation'
                 ],
                 'Value': [
-                    f"{yes_count} / {total_installations} ({yes_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
-                    f"{int(users_served.sum()):,}" if len(users_served) > 0 else "N/A",
-                    f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "N/A",
-                    f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "N/A",
-                    f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "N/A",
-                    f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "N/A",
-                    f"{int(datasets_at_start.sum() + new_datasets.sum()):,}" if (len(datasets_at_start) > 0 and len(new_datasets) > 0) else "N/A",
-                    f"{volume_at_start.sum() + new_volume.sum():.2f}" if (len(volume_at_start) > 0 and len(new_volume) > 0) else "N/A"
+                    f"{yes_count} ({yes_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
+                    f"{in_progress_count} ({in_progress_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
+                    f"{partially_count} ({partially_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
+                    f"{no_count} ({no_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
+                    f"{int(data_items.sum()):,}" if len(data_items) > 0 else "N/A",
+                    f"{int(datasets_col_39.sum()):,}" if len(datasets_col_39) > 0 else "N/A",
+                    f"{len(data_items)}" if len(data_items) > 0 else "N/A",
+                    f"{datasets_col_39.mean():.1f}" if len(datasets_col_39) > 0 else "N/A"
                 ]
             })
-            
+
             st.dataframe(kpi_summary, use_container_width=True, hide_index=True)
-            
-        except Exception as e:
-            st.error(f"Error loading KPI data: {str(e)}")
-            import traceback
-            st.error(traceback.format_exc())
-    
-    else:  # Transnational Access
+
+            else:  # Transnational Access
         # ==================== TRANSNATIONAL ACCESS KPI - UNDER DEVELOPMENT ====================
         st.info("🚧 This section is currently under development. KPI metrics and visualizations will be available soon.")
         
@@ -2519,6 +2551,5 @@ elif selected == "Data":
 elif selected == "Contact":
     st.markdown("<span class='small'>Home ▸ Contact</span>", unsafe_allow_html=True)
     st.header("Contact")
-    st.write("• Conception: Jan Michalek and Juliano Ramanantsoa")
+    st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
-
