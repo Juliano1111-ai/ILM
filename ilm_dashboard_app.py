@@ -502,9 +502,12 @@ def load_excel_data():
 # Format: PROJECT-C#-A# where C# is the call number
 # -------------------------------------------------------------------------
 def extract_call(project_id):
-    """Extract call number from project ID"""
+    """Extract call number from project ID
+    Format: PROJECT-C#-... where C# is the call number
+    Example: TA2-541-3-C1_1 has call C1, TA2-541-3-C3_2 has call C3
+    """
     try:
-        match = re.search(r'-C(\d+)-', str(project_id))
+        match = re.search(r'[-_]C(\d+)[-_]', str(project_id))
         if match:
             return f"Call {match.group(1)}"
         return "Unknown"
@@ -2341,11 +2344,14 @@ if selected == "KPI":
             with col2:
                 # Create bar chart comparing installations
                 if len(data_items) > 0:
-                    # Top 10 installations by data items
+                    # Top 10 installations by data items - using Installation ID from column G (index 6)
+                    installation_ids = df_raw.iloc[:, 6]  # Column G: Installation ID
                     top_installations = data_items.nlargest(10)
+                    top_installation_ids = [installation_ids.iloc[idx] if idx < len(installation_ids) else f"Installation {idx+1}" 
+                                           for idx in top_installations.index]
         
                     fig = go.Figure(data=[go.Bar(
-                        x=[f"Installation {i+1}" for i in range(len(top_installations))],
+                        x=top_installation_ids,
                         y=top_installations.values,
                         marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
                         text=[f"{int(v):,}" for v in top_installations.values],
@@ -2367,52 +2373,122 @@ if selected == "KPI":
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-            # Additional visualization: Distribution of datasets
-            if len(datasets_col_39) > 0:
-                st.markdown("---")
-                st.markdown("**Dataset Distribution Analysis:**")
-    
-                col1, col2 = st.columns(2)
-    
-                with col1:
-                    # Histogram of dataset counts
+            # ==================== KPI 3: NUMBER OF USERS SERVED ====================
+            # Column 37 (AL): Number of users served
+            st.markdown("---")
+            st.subheader("👥 KPI-3: Number of Users Served")
+            st.caption("Distribution of users across all installations")
+            
+            col_37_users = df_raw.iloc[:, 37]  # Number of users served (AL column)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Calculate user statistics
+                users_served = pd.to_numeric(col_37_users, errors='coerce').dropna()
+                
+                if len(users_served) > 0:
+                    st.metric("Total Users Served", f"{int(users_served.sum()):,}")
+                    st.metric("Average per Installation", f"{users_served.mean():.0f}")
+                    st.metric("Median Users", f"{users_served.median():.0f}")
+                    st.metric("Max Users (Single Installation)", f"{int(users_served.max()):,}")
+                else:
+                    st.info("No user data available")
+            
+            with col2:
+                # Create histogram
+                if len(users_served) > 0:
                     fig = go.Figure(data=[go.Histogram(
-                        x=datasets_col_39,
+                        x=users_served,
                         nbinsx=20,
-                        marker=dict(color=COLORS['blue_palette'][2], line=dict(color='white', width=1)),
+                        marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
                         name='Installations'
                     )])
-        
+                    
                     fig.update_layout(
                         title=dict(
-                            text="<b>Distribution of Dataset Counts</b>",
+                            text="<b>Distribution of Users Served</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        xaxis_title="<b>Number of Datasets</b>",
+                        xaxis_title="<b>Number of Users</b>",
                         yaxis_title="<b>Number of Installations</b>",
-                        height=350,
+                        height=400,
                         showlegend=False,
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-    
-                with col2:
-                    # Box plot showing dataset distribution
-                    fig = go.Figure(data=[go.Box(
-                        y=datasets_col_39,
+            
+            # ==================== KPI 4: DATASETS - START VS NEW ====================
+            # Columns: AN (39), AO (40), AQ (42), AR (43)
+            st.markdown("---")
+            st.subheader("📚 KPI-4: Accessible Datasets and New Datasets")
+            st.caption("Comparison of datasets at project start versus new datasets added")
+            
+            # Extract dataset columns
+            col_39_start = df_raw.iloc[:, 39]  # Datasets at start (AN)
+            col_40_vol_start = df_raw.iloc[:, 40]  # Volume at start (AO)
+            col_42_new = df_raw.iloc[:, 42]  # New datasets (AQ)
+            col_43_new_vol = df_raw.iloc[:, 43]  # New volume (AR)
+            
+            # Convert to numeric
+            datasets_at_start = pd.to_numeric(col_39_start, errors='coerce').dropna()
+            volume_at_start = pd.to_numeric(col_40_vol_start, errors='coerce').dropna()
+            new_datasets = pd.to_numeric(col_42_new, errors='coerce').dropna()
+            new_volume = pd.to_numeric(col_43_new_vol, errors='coerce').dropna()
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Display metrics
+                st.markdown("**At Project Start:**")
+                st.metric("Total Datasets", f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "N/A")
+                st.metric("Total Volume (TB)", f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "N/A")
+                
+                st.markdown("**New Datasets:**")
+                st.metric("New Datasets Added", f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "N/A")
+                st.metric("New Volume (TB)", f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "N/A")
+            
+            with col2:
+                # Create grouped bar chart
+                if len(datasets_at_start) > 0 or len(new_datasets) > 0:
+                    fig = go.Figure()
+                    
+                    # Add bars for datasets at start
+                    fig.add_trace(go.Bar(
+                        name='Datasets at Start',
+                        x=['Count', 'Volume (TB)'],
+                        y=[datasets_at_start.sum() if len(datasets_at_start) > 0 else 0, 
+                           volume_at_start.sum() if len(volume_at_start) > 0 else 0],
+                        marker=dict(color=COLORS['blue_palette'][0]),
+                        text=[f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "0", 
+                              f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "0"],
+                        textposition='auto',
+                        textfont=dict(size=12, family=FONT_FAMILY)
+                    ))
+                    
+                    # Add bars for new datasets
+                    fig.add_trace(go.Bar(
+                        name='New Datasets',
+                        x=['Count', 'Volume (TB)'],
+                        y=[new_datasets.sum() if len(new_datasets) > 0 else 0, 
+                           new_volume.sum() if len(new_volume) > 0 else 0],
                         marker=dict(color=COLORS['success']),
-                        name='Dataset Count',
-                        boxmean='sd'  # Show mean and standard deviation
-                    )])
-        
+                        text=[f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "0", 
+                              f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "0"],
+                        textposition='auto',
+                        textfont=dict(size=12, family=FONT_FAMILY)
+                    ))
+                    
                     fig.update_layout(
                         title=dict(
-                            text="<b>Dataset Count Statistics</b>",
+                            text="<b>Datasets: Start vs New</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        yaxis_title="<b>Number of Datasets</b>",
-                        height=350,
-                        showlegend=False,
+                        xaxis_title="<b>Metric Type</b>",
+                        yaxis_title="<b>Value</b>",
+                        barmode='group',
+                        height=400,
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
@@ -2557,5 +2633,7 @@ elif selected == "Contact":
     st.header("Contact")
     st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
+
+
 
     
