@@ -2445,8 +2445,12 @@ if selected == "KPI":
             })
 
             st.dataframe(kpi_summary, use_container_width=True, hide_index=True)
-
-            else:  # Transnational Access
+        
+        except Exception as e:
+            st.error(f"❌ Error loading KPI data: {str(e)}")
+            st.info("Please check your Google Sheets connection and credentials.")
+    
+    else:  # Transnational Access
         # ==================== TRANSNATIONAL ACCESS KPI - UNDER DEVELOPMENT ====================
         st.info("🚧 This section is currently under development. KPI metrics and visualizations will be available soon.")
         
@@ -2553,3 +2557,5 @@ elif selected == "Contact":
     st.header("Contact")
     st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
+
+    
