@@ -21,7 +21,7 @@
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
 # Version: 2.0
-# Last Updated: November 11, 2025
+# Last Updated: February 16, 2026
 # Contact: heriniaina.j.ramanantsoa@uib.no
 #
 # =====================================================================================
@@ -140,7 +140,7 @@ def check_password():
             if os.path.exists("Logo.jpg"):
                 st.image("Logo.jpg", use_container_width=True)
             else:
-                st.markdown('<div style="text-align: center; margin-bottom: 2rem;"><h1 style="font-size: 4rem; margin: 0;">\xf0\x9f\x8c\x8d</h1></div>', unsafe_allow_html=True)
+                st.markdown('<div style="text-align: center; margin-bottom: 2rem;"><h1 style="font-size: 4rem; margin: 0;">🌍</h1></div>', unsafe_allow_html=True)
         st.markdown('<h1 class="welcome-title">ILM Geo-INQUIRE Dashboard</h1>', unsafe_allow_html=True)
         st.markdown('<p class="welcome-subtitle">Implementation Level Matrix - Virtual Access and Transnational Access</p>', unsafe_allow_html=True)
         
@@ -165,7 +165,7 @@ def check_password():
         # """, unsafe_allow_html=True)
         
         st.text_input(
-            "ðŸ” Please enter the password to access the dashboard",
+            "🔐 Please enter the password to access the dashboard",
             type="password",
             on_change=password_entered,
             key="password",
@@ -173,7 +173,7 @@ def check_password():
         )
         
         if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-            st.error("ðŸ˜• Password incorrect. Please try again.")
+            st.error("😕 Password incorrect. Please try again.")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -191,8 +191,8 @@ def check_password():
         return False
     
     elif not st.session_state["password_correct"]:
-        st.text_input("ðŸ” Password", type="password", on_change=password_entered, key="password")
-        st.error("ðŸ˜• Password incorrect")
+        st.text_input("🔐 Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect")
         return False
     else:
         return True
@@ -1229,7 +1229,7 @@ def create_professional_pie_chart(df, names, values, title, color_map=None):
 # ------------------------------- MAIN CONTENT -------------------------------
 
 if selected == "Dashboard":
-    st.markdown(f"<span class='small'>Home â–¸ Dashboard ({data_source})</span>", unsafe_allow_html=True)
+    st.markdown(f"<span class='small'>Home →¸ Dashboard ({data_source})</span>", unsafe_allow_html=True)
     st.header("Overview")
     
     if project_label == "Virtual Access":
@@ -1253,7 +1253,7 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # ===== 5 KEY DASHBOARD VISUALIZATIONS =====
-            st.markdown("## ðŸ“Š Key Metrics Overview")
+            st.markdown("## 📊 Key Metrics Overview")
             
             # Row 1: RI and Implementation Status (2 columns)
             col1, col2 = st.columns(2)
@@ -1513,7 +1513,7 @@ if selected == "Dashboard":
             st.markdown("---")
 
             # Implementation Matrix Heatmap (full width)
-            st.markdown("## ðŸ“Š Implementation Matrix Analysis")
+            st.markdown("## 📊 Implementation Matrix Analysis")
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             
             if va_df is not None and not va_df.empty:
@@ -1528,7 +1528,7 @@ if selected == "Dashboard":
                         buf.seek(0)
                         
                         st.download_button(
-                            label="ðŸ“¥ Download Implementation Matrix (High-Res PNG)",
+                            label="📥 Download Implementation Matrix (High-Res PNG)",
                             data=buf,
                             file_name="implementation_matrix_heatmap.png",
                             mime="image/png",
@@ -1565,7 +1565,7 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # TA Overview
-            st.markdown("## ðŸ“Š Transnational Access Overview")
+            st.markdown("## 📊 Transnational Access Overview")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1599,7 +1599,7 @@ if selected == "Dashboard":
             st.warning("No Transnational Access data available")
 
 elif selected == "Analytics":
-    st.markdown("<span class='small'>Home â–¸ Analytics</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home →¸ Analytics</span>", unsafe_allow_html=True)
     st.header("Detailed Analytics")
     
     if project_label == "Virtual Access":
@@ -1607,7 +1607,7 @@ elif selected == "Analytics":
         if va_df is not None and not va_df.empty:
             va_stats = compute_va_statistics(va_df)
             
-            st.markdown("## ðŸŽ¯ Implementation Level 1")
+            st.markdown("## 🎯 Implementation Level 1")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1652,7 +1652,7 @@ elif selected == "Analytics":
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## ðŸš€ Implementation Level 2")
+            st.markdown("## 🚀 Implementation Level 2")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1693,7 +1693,7 @@ elif selected == "Analytics":
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## ðŸš€ Implementation Level 3")
+            st.markdown("## 🚀 Implementation Level 3")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1757,7 +1757,7 @@ elif selected == "Analytics":
     else:
         # ENHANCED TA ANALYTICS with 10+ charts
         if ta_df is not None and not ta_df.empty:
-            st.markdown("## ðŸ“Š Comprehensive Transnational Access Analytics")
+            st.markdown("## 📊 Comprehensive Transnational Access Analytics")
             st.markdown("---")
             
             # Row 1
@@ -1821,7 +1821,7 @@ elif selected == "Analytics":
             st.markdown("---")
             
             # Row 3: Call-Based Analysis
-            st.markdown("### ðŸ“Š Call-Based Analysis")
+            st.markdown("### 📊 Call-Based Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1877,7 +1877,7 @@ elif selected == "Analytics":
             st.markdown("---")
             
             # Row 4: Temporal Analysis
-            st.markdown("### ðŸ“Š Temporal Analysis")
+            st.markdown("### 📊 Temporal Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1964,7 +1964,7 @@ elif selected == "Analytics":
             st.markdown("---")
             
             # Row 5: Geographic/Institutional
-            st.markdown("### ðŸŒÂ Geographic and Institutional Analysis")
+            st.markdown("### 🌎 Geographic and Institutional Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -2001,11 +2001,11 @@ elif selected == "Analytics":
 
 # TRANSNATIONAL ACCESS COMPREHENSIVE DASHBOARD (only when TA is selected)
 elif selected == "Transnational Access":
-    st.markdown("<span class='small'>Home â–¸ Transnational Access Dashboard</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home →¸ Transnational Access Dashboard</span>", unsafe_allow_html=True)
     st.header("ðŸŒÂ Transnational Access Comprehensive Dashboard")
     
     if ta_df is not None and not ta_df.empty:
-        st.markdown("### ðŸ“Š TA Applications Status Overview")
+        st.markdown("### 📊 TA Applications Status Overview")
         st.markdown("---")
         
         ta_display = ta_df.copy()
@@ -2071,7 +2071,7 @@ elif selected == "Transnational Access":
         st.markdown("---")
         
         # Matrix views
-        st.markdown("### ðŸ“Š Detailed Application Matrix")
+        st.markdown("### 🗂️ Detailed Application Matrix")
         
         col1, col2 = st.columns(2)
         
@@ -2293,7 +2293,7 @@ if selected == "KPI":
     
     if project_label == "Virtual Access":
         # ==================== VIRTUAL ACCESS KPI - FULL IMPLEMENTATION ====================
-        st.header("ðŸ“Š Virtual Access KPIs")
+        st.header("### 📊 Virtual Access KPIs")
         
         # Load raw data to access KPI columns by index
         try:
@@ -2309,7 +2309,7 @@ if selected == "KPI":
                 # Running locally - use JSON file
                 json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
                 if not os.path.exists(json_keyfile_path):
-                    st.error("âŒ Credentials not found. Cannot load KPI data.")
+                    st.error("❌ Credentials not found. Cannot load KPI data.")
                     raise Exception("Credentials missing")
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
             
@@ -2366,14 +2366,14 @@ if selected == "KPI":
                 # Show all 4 categories
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    st.metric("âœ… Fully Implemented", yes_count, 
+                    st.metric("✅ Fully Implemented", yes_count, 
                              delta=f"{yes_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("ðŸŸ¡ Partially", partially_count,
+                    st.metric("🟡 Partially", partially_count,
                              delta=f"{partially_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
                 with col_b:
-                    st.metric("ðŸ”„ In Progress", in_progress_count,
+                    st.metric("🔄 In Progress", in_progress_count,
                              delta=f"{in_progress_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("âŒ Not Implemented", no_count,
+                    st.metric("❌ Not Implemented", no_count,
                              delta=f"{no_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
 
             with col2:
@@ -2411,7 +2411,7 @@ if selected == "KPI":
 
             # Summary text
             implementation_rate = ((yes_count + partially_count) / total_installations * 100) if total_installations > 0 else 0
-            st.caption(f"ðŸ“Š **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
+            st.caption(f"📊 **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
 
             st.markdown("---")
 
@@ -2419,7 +2419,7 @@ if selected == "KPI":
             # Column 37: Total data items/records
             # Column 39 (AN): Datasets at start or current datasets
             # Column 40 (AO): New datasets or volume
-            st.subheader("ðŸ“š KPI-2: Accessible Datasets")
+            st.subheader("## 📚 KPI-2: Accessible Datasets")
             st.caption("Tracks the number of datasets and data records available through installations")
 
             col_37 = df_raw.iloc[:, 37]  # Total data items/records
@@ -2438,15 +2438,15 @@ if selected == "KPI":
                 st.markdown("**Dataset Statistics:**")
     
                 if len(data_items) > 0:
-                    st.metric("ðŸ—‚ï¸ Total Data Items/Records", f"{int(data_items.sum()):,}",
+                    st.metric("🗂️ Total Data Items/Records", f"{int(data_items.sum()):,}",
                              help="Total number of individual data records across all installations")
-                    st.metric("ðŸ“Š Average per Installation", f"{data_items.mean():.0f}",
+                    st.metric("📊 Average per Installation", f"{data_items.mean():.0f}",
                              help="Average data items per installation")
     
                 if len(datasets_col_39) > 0:
-                    st.metric("ðŸ“š Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
+                    st.metric("📚 Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
                              help="Total number of distinct datasets")
-                    st.metric("ðŸ“ˆ Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
+                    st.metric("📈 Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
 
             with col2:
                 # Create bar chart comparing installations
@@ -2534,7 +2534,7 @@ if selected == "KPI":
 
             # Summary metrics table
             st.markdown("---")
-            st.subheader("ðŸ“Š KPI Summary Table")
+            st.subheader("## 📊 KPI Summary Table")
 
             kpi_summary = pd.DataFrame({
                 'KPI Metric': [
@@ -2568,10 +2568,10 @@ if selected == "KPI":
 
     else:  # Transnational Access
         # ==================== TRANSNATIONAL ACCESS KPI - UNDER DEVELOPMENT ====================
-        st.info("\U0001f6a7 This section is currently under development. KPI metrics and visualizations will be available soon.")
+        st.info("🚧 This section is currently under development. KPI metrics and visualizations will be available soon.")
         
         # Show preview of coming features
-        st.subheader("Coming Soon:")
+        st.subheader("📊 Coming Soon:")
         
         col1, col2, col3 = st.columns(3)
         
@@ -2624,7 +2624,7 @@ if selected == "KPI":
 # ===============================================================================================
 
 elif selected == "Data":
-    st.markdown("<span class='small'>Home â–¸ Data</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home →¸ Data</span>", unsafe_allow_html=True)
     st.header("Data Table")
     
     if project_label == "Virtual Access":
@@ -2644,7 +2644,7 @@ elif selected == "Data":
             
             # Provide CSV download button (using cleaned dataframe)
             st.download_button(
-                "ðŸ“Š Download CSV", 
+                "📥 Download CSV", 
                 data=va_df_display.to_csv(index=False).encode("utf-8"),
                 file_name="VA_data.csv", 
                 mime="text/csv"
@@ -2659,7 +2659,7 @@ elif selected == "Data":
             
             # Provide CSV download button
             st.download_button(
-                "ðŸ“Š Download CSV", 
+                "📥 Download CSV", 
                 data=ta_df.to_csv(index=False).encode("utf-8"),
                 file_name="TA_data.csv", 
                 mime="text/csv"
@@ -2669,10 +2669,10 @@ elif selected == "Data":
 
 
 elif selected == "Contact":
-    st.markdown("<span class='small'>Home â–¸ Contact</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home → Contact</span>", unsafe_allow_html=True)
     st.header("Contact")
-    st.write("â€¢ Conceptor: Jan Michalek and Juliano Ramanantsoa")
-    st.write("â€¢ Reach out: heriniaina.j.ramanantsoa@uib.no")
+    st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
+    st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
 
 
 
