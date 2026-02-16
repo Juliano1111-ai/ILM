@@ -124,7 +124,7 @@ def check_password():
             position: relative;
         }
         .feature-list li:before {
-            content: "✓";
+            content: "âœ“";
             position: absolute;
             left: 0;
             font-weight: bold;
@@ -134,7 +134,13 @@ def check_password():
         """, unsafe_allow_html=True)
         
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown('<div style="text-align: center; margin-bottom: 2rem;"><h1 style="font-size: 4rem; margin: 0;">🌍</h1></div>', unsafe_allow_html=True)
+        # Display Geo-INQUIRE logo centered on login page
+        _logo_col1, _logo_col2, _logo_col3 = st.columns([1, 2, 1])
+        with _logo_col2:
+            if os.path.exists("Logo.jpg"):
+                st.image("Logo.jpg", use_container_width=True)
+            else:
+                st.markdown('<div style="text-align: center; margin-bottom: 2rem;"><h1 style="font-size: 4rem; margin: 0;">\xf0\x9f\x8c\x8d</h1></div>', unsafe_allow_html=True)
         st.markdown('<h1 class="welcome-title">ILM Geo-INQUIRE Dashboard</h1>', unsafe_allow_html=True)
         st.markdown('<p class="welcome-subtitle">Implementation Level Matrix - Virtual Access and Transnational Access</p>', unsafe_allow_html=True)
         
@@ -159,7 +165,7 @@ def check_password():
         # """, unsafe_allow_html=True)
         
         st.text_input(
-            "🔐 Please enter the password to access the dashboard",
+            "ðŸ” Please enter the password to access the dashboard",
             type="password",
             on_change=password_entered,
             key="password",
@@ -167,7 +173,7 @@ def check_password():
         )
         
         if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-            st.error("😕 Password incorrect. Please try again.")
+            st.error("ðŸ˜• Password incorrect. Please try again.")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -177,7 +183,7 @@ def check_password():
                 For access credentials or technical support, please contact the project administrator.
             </p>
             <p style="font-size: 0.8rem; margin-top: 1rem;">
-                © 2025 Geo-INQUIRE Project | University of Bergen
+                Â© 2025 Geo-INQUIRE Project | University of Bergen
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -185,8 +191,8 @@ def check_password():
         return False
     
     elif not st.session_state["password_correct"]:
-        st.text_input("🔐 Password", type="password", on_change=password_entered, key="password")
-        st.error("😕 Password incorrect")
+        st.text_input("ðŸ” Password", type="password", on_change=password_entered, key="password")
+        st.error("ðŸ˜• Password incorrect")
         return False
     else:
         return True
@@ -502,12 +508,9 @@ def load_excel_data():
 # Format: PROJECT-C#-A# where C# is the call number
 # -------------------------------------------------------------------------
 def extract_call(project_id):
-    """Extract call number from project ID
-    Format: PROJECT-C#-... where C# is the call number
-    Example: TA2-541-3-C1_1 has call C1, TA2-541-3-C3_2 has call C3
-    """
+    """Extract call number from project ID"""
     try:
-        match = re.search(r'[-_]C(\d+)[-_]', str(project_id))
+        match = re.search(r'-C(\d+)-', str(project_id))
         if match:
             return f"Call {match.group(1)}"
         return "Unknown"
@@ -543,13 +546,13 @@ def load_google_sheets_data():
                 # Running locally - use JSON file
                 json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
                 if not os.path.exists(json_keyfile_path):
-                    st.error(f"❌ Credentials file not found: {json_keyfile_path}")
-                    st.info("📝 Place your Google service account JSON file in the same directory as this app")
+                    st.error(f"âŒ Credentials file not found: {json_keyfile_path}")
+                    st.info("ðŸ“ Place your Google service account JSON file in the same directory as this app")
                     return None, None, "Credentials file missing"
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
                 client = gspread.authorize(creds)
         except Exception as e:
-            st.error(f"❌ Authentication error: {str(e)}")
+            st.error(f"âŒ Authentication error: {str(e)}")
             return None, None, f"Auth error: {str(e)}"
         
         # Use the correct spreadsheet URL
@@ -561,7 +564,7 @@ def load_google_sheets_data():
             worksheet_va = spreadsheet.worksheet("ILM_Connector")
             data_va = worksheet_va.get_all_values()
             if len(data_va) < 4:
-                st.warning("⚠️ Virtual Access worksheet has insufficient data")
+                st.warning("âš ï¸ Virtual Access worksheet has insufficient data")
                 df_va = pd.DataFrame()
             else:
                 df_va = pd.DataFrame(data_va[4:], columns=data_va[3])
@@ -662,12 +665,12 @@ def load_google_sheets_data():
                         df_va[col] = df_va[col].apply(clean_implementation_value)
                 
         except gspread.exceptions.WorksheetNotFound:
-            st.error("❌ Worksheet 'ILM_Connector' not found!")
-            st.info(f"📝 Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
+            st.error("âŒ Worksheet 'ILM_Connector' not found!")
+            st.info(f"ðŸ“ Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
             return None, None, "VA worksheet not found"
         except Exception as e:
             import traceback
-            st.error(f"❌ Error loading VA data: {str(e)}")
+            st.error(f"âŒ Error loading VA data: {str(e)}")
             st.code(traceback.format_exc())
             return None, None, f"VA data error: {str(e)}"
         
@@ -718,27 +721,27 @@ def load_google_sheets_data():
                 df_ta = df_ta.rename(columns=existing_renames)
                 
         except gspread.exceptions.WorksheetNotFound:
-            st.warning("⚠️ Worksheet 'ILM_Connector_TA' not found (optional)")
+            st.warning("âš ï¸ Worksheet 'ILM_Connector_TA' not found (optional)")
             df_ta = pd.DataFrame()
         except Exception as e:
-            st.warning(f"⚠️ Error loading TA data: {str(e)}")
+            st.warning(f"âš ï¸ Error loading TA data: {str(e)}")
             df_ta = pd.DataFrame()
         
         return df_va, df_ta, None
         
     except gspread.exceptions.APIError as e:
         error_msg = f"Google Sheets API Error: {str(e)}"
-        st.error(f"❌ {error_msg}")
-        st.info("💡 Make sure the sheet is shared with your service account email")
+        st.error(f"âŒ {error_msg}")
+        st.info("ðŸ’¡ Make sure the sheet is shared with your service account email")
         return None, None, error_msg
     except gspread.exceptions.SpreadsheetNotFound:
         error_msg = "Spreadsheet not found or not accessible"
-        st.error(f"❌ {error_msg}")
-        st.info("💡 Check: 1) Sheet URL is correct, 2) Sheet is shared with service account")
+        st.error(f"âŒ {error_msg}")
+        st.info("ðŸ’¡ Check: 1) Sheet URL is correct, 2) Sheet is shared with service account")
         return None, None, error_msg
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        st.error(f"❌ {error_msg}")
+        st.error(f"âŒ {error_msg}")
         import traceback
         st.code(traceback.format_exc())
         return None, None, error_msg
@@ -749,17 +752,17 @@ va_df_gs, ta_df_gs, error = load_google_sheets_data()
 if va_df_gs is not None and not va_df_gs.empty:
     # SUCCESS: Using Google Sheets (real-time data)
     va_df, ta_df = va_df_gs, ta_df_gs
-    data_source = "Google Sheets ✅ (Real-time)"
+    data_source = "Google Sheets âœ… (Real-time)"
 else:
     # FALLBACK: Try Excel file as backup
-    st.warning("⚠️ Google Sheets not available - trying Excel backup...")
+    st.warning("âš ï¸ Google Sheets not available - trying Excel backup...")
     if error:
         st.error(f"Error details: {error}")
     va_df, ta_df = load_excel_data()
     data_source = "Excel File (Backup)"
     
     if va_df is None or va_df.empty:
-        st.error("❌ No data available! Please check:")
+        st.error("âŒ No data available! Please check:")
         st.markdown("""
         1. **Google Sheets Setup:**
            - Credentials file: `valiant-splicer-409609-e34abed30cc1.json` in same folder
@@ -847,39 +850,137 @@ def compute_va_statistics(df):
     
     return stats
 
-# SIMPLIFIED PNG EXPORT - Just PNG, no HTML
-def create_download_button(fig, filename_base):
-    """Create download button using HTML export (no kaleido needed)"""
+# ===============================================================================================
+# COLUMN SOURCE MAPPING - Maps internal column names to original ILM table column names
+# ===============================================================================================
+# This mapping allows each figure to display which original column(s) from the ILM table
+# were used, so readers can backtrack to the source data.
+# ===============================================================================================
+VA_COLUMN_SOURCES = {
+    'compliant_ri': 'Compliant with Research infrastructure (RI)',
+    'implementation_status': 'Implementation status to RI [0; not implemented, 0.2; planned, 0.5; partly implemented, 1; implemented]',
+    'data_repr': 'Data Representations [georeferenced/non-georeferenced/time-series/software]',
+    'license': 'License',
+    'metadata_standard': 'Standard of metadata describing the service at RI integration level (not data)',
+    'service_running': '[0;1] - Service Running',
+    'api_standard': '(OGC, ERDDAP, etc)',
+    'parametrization': '[0;1] - Parametrization',
+    'fully_described': '[0;1] - Fully Described',
+    'documentation_status': '[0, not implemented; 0.2 planned; 0.5, partly implemented; 1, implemented]',
+    'payloads': '[0;1] - Payloads',
+    'auth_method': '[e.g. OAuth, SAML, API access token, none]',
+    'data_policy': '[open; restricted; embargoed]',
+    'converter_plugin': '[0;1] - Converter Plugin',
+    'completeness_pct': '[%] - Completeness',
+    'trl': '[1-9] - TRL',
+    'domain': 'Scientific domain/category',
+    'service_name': 'Service/Installation Name',
+    'installation_id': 'Installation ID',
+    'service_id': 'Service ID',
+    'wp': 'WP',
+}
+
+TA_COLUMN_SOURCES = {
+    'project_id': 'Project ID',
+    'pi_gender': 'PI Gender',
+    'project_title': 'Project title',
+    'project_acronym': 'Project acronym',
+    'ta_host': 'TA host',
+    'pi_affiliation': 'PI Affiliation',
+    'project_stage': 'Project Stage (completed milestone)',
+    'stage_updated': 'Stage updated on',
+    'visit_start': 'Start of the Visit/Access',
+    'visit_end': 'End of the Visit/Access',
+    'unit_of_access': 'Unit of access',
+    'units_requested': 'Number of units requested',
+    'number_of_users': 'Number of Users',
+    'units_used': 'Number of units used',
+    'expected_outcomes': 'Expected assets as outcomes',
+    'delivered_outcomes': 'Delivered assets as outcomes',
+    'access_level': 'Level of access',
+    'associated_wp': 'Associated WP',
+    'associated_va': 'Associated VA',
+    'associated_ri': 'Associated RI',
+    'integration_strategy': 'Expected strategy of integration',
+    'call': 'Project ID (derived: Call number)',
+}
+
+
+def add_source_annotation(col_keys, access_type="VA"):
+    """Add a discreet italic annotation showing the original ILM column name(s) used for a figure."""
+    source_map = VA_COLUMN_SOURCES if access_type == "VA" else TA_COLUMN_SOURCES
+    if isinstance(col_keys, str):
+        col_keys = [col_keys]
+    sources = []
+    for key in col_keys:
+        if key in source_map:
+            sources.append(source_map[key])
+    if sources:
+        source_text = " | ".join(sources)
+        st.markdown(
+            f'<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0; line-height: 1.2;">'
+            f'Source column: {source_text}</p>',
+            unsafe_allow_html=True
+        )
+
+
+# ===============================================================================================
+# PROFESSIONAL PNG EXPORT (300 DPI) 
+# ===============================================================================================
+def create_download_button(fig, filename_base, col_keys=None, access_type="VA"):
+    """Create professional PNG download button at 300 DPI using kaleido.
+    Also adds column source annotation if col_keys are provided."""
     if fig is None:
         return
     
+    # Add column source annotation if provided
+    if col_keys:
+        add_source_annotation(col_keys, access_type)
+    
     try:
-        # Export as HTML (works without kaleido)
-        html_bytes = fig.to_html(
-            include_plotlyjs='cdn',
-            config={
-                'toImageButtonOptions': {
-                    'format': 'png',
-                    'filename': filename_base,
-                    'height': 800,
-                    'width': 1200,
-                    'scale': 2
-                },
-                'displayModeBar': True,
-                'displaylogo': False
-            }
-        ).encode()
+        # Try PNG export at 300 DPI using kaleido
+        png_bytes = fig.to_image(
+            format="png",
+            width=1200,
+            height=800,
+            scale=3  # 3x scale = ~300 DPI at print size
+        )
         
         st.download_button(
-            label="📥 Download HTML (Open in browser, use camera icon to save PNG)",
-            data=html_bytes,
-            file_name=f"{filename_base}.html",
-            mime="text/html",
-            key=f"html_{filename_base}"
+            label="\u2b07 Download PNG (300 DPI)",
+            data=png_bytes,
+            file_name=f"{filename_base}.png",
+            mime="image/png",
+            key=f"png_{filename_base}"
         )
+    except Exception:
+        # Fallback: export as HTML with high-res camera button
+        try:
+            html_bytes = fig.to_html(
+                include_plotlyjs='cdn',
+                config={
+                    'toImageButtonOptions': {
+                        'format': 'png',
+                        'filename': filename_base,
+                        'height': 800,
+                        'width': 1200,
+                        'scale': 3
+                    },
+                    'displayModeBar': True,
+                    'displaylogo': False
+                }
+            ).encode()
             
-    except Exception as e:
-        st.caption(f"⚠️ Export error: {str(e)}")
+            st.download_button(
+                label="\u2b07 Download HTML (use camera icon for PNG)",
+                data=html_bytes,
+                file_name=f"{filename_base}.html",
+                mime="text/html",
+                key=f"html_{filename_base}"
+            )
+        except Exception as e:
+            st.caption(f"Export not available: {str(e)}")
+
 
 # ------------------------------- Enhanced Complex Heatmap -------------------------------
 def create_enhanced_heatmap(df):
@@ -950,7 +1051,7 @@ def create_enhanced_heatmap(df):
                                 edgecolor='gray', alpha=0.9, linewidth=2))
                 
                 # Implemented count - bottom left corner
-                ax.text(j+0.18, i+0.82, f'{int(implemented_matrix[i,j])}✓', 
+                ax.text(j+0.18, i+0.82, f'{int(implemented_matrix[i,j])}âœ“', 
                        ha='center', va='center',
                        color='#145A32', fontsize=11, fontweight='bold',
                        bbox=dict(boxstyle='round,pad=0.2', facecolor='#A9DFBF', 
@@ -1128,7 +1229,7 @@ def create_professional_pie_chart(df, names, values, title, color_map=None):
 # ------------------------------- MAIN CONTENT -------------------------------
 
 if selected == "Dashboard":
-    st.markdown(f"<span class='small'>Home ▸ Dashboard ({data_source})</span>", unsafe_allow_html=True)
+    st.markdown(f"<span class='small'>Home â–¸ Dashboard ({data_source})</span>", unsafe_allow_html=True)
     st.header("Overview")
     
     if project_label == "Virtual Access":
@@ -1152,7 +1253,7 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # ===== 5 KEY DASHBOARD VISUALIZATIONS =====
-            st.markdown("## 📊 Key Metrics Overview")
+            st.markdown("## ðŸ“Š Key Metrics Overview")
             
             # Row 1: RI and Implementation Status (2 columns)
             col1, col2 = st.columns(2)
@@ -1192,7 +1293,7 @@ if selected == "Dashboard":
                     )
                     
                     st.plotly_chart(fig_ri, use_container_width=False)
-                    create_download_button(fig_ri, "ri_distribution")
+                    create_download_button(fig_ri, "ri_distribution", col_keys=["compliant_ri"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1242,7 +1343,7 @@ if selected == "Dashboard":
                     )
                     
                     st.plotly_chart(fig_impl, use_container_width=False)
-                    create_download_button(fig_impl, "implementation_status")
+                    create_download_button(fig_impl, "implementation_status", col_keys=["implementation_status"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1303,7 +1404,7 @@ if selected == "Dashboard":
                     )
                     
                     st.plotly_chart(fig_repr, use_container_width=False)
-                    create_download_button(fig_repr, "data_representations")
+                    create_download_button(fig_repr, "data_representations", col_keys=["data_repr"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1367,7 +1468,7 @@ if selected == "Dashboard":
                     )
                     
                     st.plotly_chart(fig_license, use_container_width=False)
-                    create_download_button(fig_license, "license_distribution")
+                    create_download_button(fig_license, "license_distribution", col_keys=["license"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1406,13 +1507,13 @@ if selected == "Dashboard":
                 )
                 
                 st.plotly_chart(fig_metadata, use_container_width=False)
-                create_download_button(fig_metadata, "metadata_standards")
+                create_download_button(fig_metadata, "metadata_standards", col_keys=["metadata_standard"], access_type="VA")
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("---")
 
             # Implementation Matrix Heatmap (full width)
-            st.markdown("## 📊 Implementation Matrix Analysis")
+            st.markdown("## ðŸ“Š Implementation Matrix Analysis")
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             
             if va_df is not None and not va_df.empty:
@@ -1427,14 +1528,15 @@ if selected == "Dashboard":
                         buf.seek(0)
                         
                         st.download_button(
-                            label="📥 Download Implementation Matrix (High-Res PNG)",
+                            label="ðŸ“¥ Download Implementation Matrix (High-Res PNG)",
                             data=buf,
                             file_name="implementation_matrix_heatmap.png",
                             mime="image/png",
                             key="heatmap_download"
                         )
                         
-                        st.caption("**Legend:** Large numbers in center = Total services | Green boxes with ✓ = Implemented services")
+                        add_source_annotation(["compliant_ri", "implementation_status", "data_repr"], access_type="VA")
+                        st.caption("**Legend:** Large numbers in center = Total services | Green boxes with âœ“ = Implemented services")
                     else:
                         st.info("Heatmap data not available")
                 except Exception as e:
@@ -1463,7 +1565,7 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # TA Overview
-            st.markdown("## 📊 Transnational Access Overview")
+            st.markdown("## ðŸ“Š Transnational Access Overview")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1481,7 +1583,7 @@ if selected == "Dashboard":
                                                                'Project Stage Distribution',
                                                                color_map=stage_color_map)
                     st.plotly_chart(fig_stage, use_container_width=True)
-                    create_download_button(fig_stage, "project_stages")
+                    create_download_button(fig_stage, "project_stages", col_keys=["project_stage"], access_type="TA")
             
             with col2:
                 if 'call' in ta_df.columns:
@@ -1492,12 +1594,12 @@ if selected == "Dashboard":
                                                               orientation='v',
                                                               color_palette=COLORS['blue_palette'])
                     st.plotly_chart(fig_calls, use_container_width=True)
-                    create_download_button(fig_calls, "applications_by_call")
+                    create_download_button(fig_calls, "applications_by_call", col_keys=["call"], access_type="TA")
         else:
             st.warning("No Transnational Access data available")
 
 elif selected == "Analytics":
-    st.markdown("<span class='small'>Home ▸ Analytics</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home â–¸ Analytics</span>", unsafe_allow_html=True)
     st.header("Detailed Analytics")
     
     if project_label == "Virtual Access":
@@ -1505,7 +1607,7 @@ elif selected == "Analytics":
         if va_df is not None and not va_df.empty:
             va_stats = compute_va_statistics(va_df)
             
-            st.markdown("## 🎯 Implementation Level 1")
+            st.markdown("## ðŸŽ¯ Implementation Level 1")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1519,7 +1621,7 @@ elif selected == "Analytics":
                                                                  'Service Running Status',
                                                                  color_map=color_map)
                     st.plotly_chart(fig_running, use_container_width=False)
-                    create_download_button(fig_running, "service_running")
+                    create_download_button(fig_running, "service_running", col_keys=["service_running"], access_type="VA")
                 
             
             st.markdown("---")
@@ -1535,7 +1637,7 @@ elif selected == "Analytics":
                                                            orientation='v',
                                                            color_palette=COLORS['blue_palette'])
                     st.plotly_chart(fig_api, use_container_width=False)
-                    create_download_button(fig_api, "api_standards")
+                    create_download_button(fig_api, "api_standards", col_keys=["api_standard"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1546,11 +1648,11 @@ elif selected == "Analytics":
                     fig_meta = create_professional_pie_chart(meta_data, 'Standard', 'Count',
                                                             'Metadata Standards')
                     st.plotly_chart(fig_meta, use_container_width=False)
-                    create_download_button(fig_meta, "metadata_standards")
+                    create_download_button(fig_meta, "metadata_standards", col_keys=["metadata_standard"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## 🚀 Implementation Level 2")
+            st.markdown("## ðŸš€ Implementation Level 2")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1564,7 +1666,7 @@ elif selected == "Analytics":
                                                                'Service Parametrization',
                                                                color_map=color_map)
                     st.plotly_chart(fig_param, use_container_width=False)
-                    create_download_button(fig_param, "parametrization")
+                    create_download_button(fig_param, "parametrization", col_keys=["parametrization"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1575,7 +1677,7 @@ elif selected == "Analytics":
                     fig_license = create_professional_pie_chart(license_data, 'License', 'Count',
                                                                 'License Distribution')
                     st.plotly_chart(fig_license, use_container_width=False)
-                    create_download_button(fig_license, "license_types")
+                    create_download_button(fig_license, "license_types", col_keys=["license"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1587,11 +1689,11 @@ elif selected == "Analytics":
                                                               'Full Description Status',
                                                               color_map=color_map)
                     st.plotly_chart(fig_desc, use_container_width=False)
-                    create_download_button(fig_desc, "fully_described")
+                    create_download_button(fig_desc, "fully_described", col_keys=["fully_described"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## 🚀 Implementation Level 3")
+            st.markdown("## ðŸš€ Implementation Level 3")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
@@ -1612,7 +1714,7 @@ elif selected == "Analytics":
                                                            orientation='v',
                                                            color_palette=[color_map.get(s, COLORS['info']) for s in doc_data['Status']])
                     st.plotly_chart(fig_doc, use_container_width=False)
-                    create_download_button(fig_doc, "documentation")
+                    create_download_button(fig_doc, "documentation", col_keys=["documentation_status"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1624,7 +1726,7 @@ elif selected == "Analytics":
                                                                  'Payload Support',
                                                                  color_map=color_map)
                     st.plotly_chart(fig_payload, use_container_width=False)
-                    create_download_button(fig_payload, "payloads")
+                    create_download_button(fig_payload, "payloads", col_keys=["payloads"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1634,7 +1736,7 @@ elif selected == "Analytics":
                     fig_auth = create_professional_pie_chart(auth_data, 'Method', 'Count',
                                                             'Authentication Methods')
                     st.plotly_chart(fig_auth, use_container_width=False)
-                    create_download_button(fig_auth, "authentication")
+                    create_download_button(fig_auth, "authentication", col_keys=["auth_method"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([1, 1, 1])
@@ -1647,7 +1749,7 @@ elif selected == "Analytics":
                                                               'Converter Plugin Availability',
                                                               color_map=color_map)
                     st.plotly_chart(fig_conv, use_container_width=False)
-                    create_download_button(fig_conv, "converter")
+                    create_download_button(fig_conv, "converter", col_keys=["converter_plugin"], access_type="VA")
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Virtual Access data available")
@@ -1655,7 +1757,7 @@ elif selected == "Analytics":
     else:
         # ENHANCED TA ANALYTICS with 10+ charts
         if ta_df is not None and not ta_df.empty:
-            st.markdown("## 📊 Comprehensive Transnational Access Analytics")
+            st.markdown("## ðŸ“Š Comprehensive Transnational Access Analytics")
             st.markdown("---")
             
             # Row 1
@@ -1671,7 +1773,7 @@ elif selected == "Analytics":
                                                               'Principal Investigator Gender Distribution',
                                                               color_map=color_map)
                     st.plotly_chart(fig_gender, use_container_width=False)
-                    create_download_button(fig_gender, "ta_gender_distribution")
+                    create_download_button(fig_gender, "ta_gender_distribution", col_keys=["pi_gender"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1684,7 +1786,7 @@ elif selected == "Analytics":
                                                             orientation='h',
                                                             color_palette=COLORS['green_palette'])
                     st.plotly_chart(fig_host, use_container_width=False)
-                    create_download_button(fig_host, "ta_host_distribution")
+                    create_download_button(fig_host, "ta_host_distribution", col_keys=["ta_host"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1700,7 +1802,7 @@ elif selected == "Analytics":
                     fig_unit = create_professional_pie_chart(unit_data, 'Unit', 'Count',
                                                             'Access Unit Types')
                     st.plotly_chart(fig_unit, use_container_width=False)
-                    create_download_button(fig_unit, "ta_access_units")
+                    create_download_button(fig_unit, "ta_access_units", col_keys=["unit_of_access"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1713,13 +1815,13 @@ elif selected == "Analytics":
                                                              orientation='v',
                                                              color_palette=['#8E44AD'] * len(user_data))
                     st.plotly_chart(fig_users, use_container_width=False)
-                    create_download_button(fig_users, "ta_number_of_users")
+                    create_download_button(fig_users, "ta_number_of_users", col_keys=["number_of_users"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 3: Call-Based Analysis
-            st.markdown("### 📊 Call-Based Analysis")
+            st.markdown("### ðŸ“Š Call-Based Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1743,7 +1845,7 @@ elif selected == "Analytics":
                         margin=dict(l=60, r=60, t=60, b=100)
                     )
                     st.plotly_chart(fig_call_gender, use_container_width=False)
-                    create_download_button(fig_call_gender, "ta_call_gender")
+                    create_download_button(fig_call_gender, "ta_call_gender", col_keys=["call", "pi_gender"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1769,13 +1871,13 @@ elif selected == "Analytics":
                         margin=dict(l=60, r=60, t=60, b=120)
                     )
                     st.plotly_chart(fig_call_host, use_container_width=False)
-                    create_download_button(fig_call_host, "ta_call_host")
+                    create_download_button(fig_call_host, "ta_call_host", col_keys=["call", "ta_host"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 4: Temporal Analysis
-            st.markdown("### 📊 Temporal Analysis")
+            st.markdown("### ðŸ“Š Temporal Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1816,7 +1918,7 @@ elif selected == "Analytics":
                         )
                         
                         st.plotly_chart(fig_monthly, use_container_width=False)
-                        create_download_button(fig_monthly, "ta_monthly_distribution")
+                        create_download_button(fig_monthly, "ta_monthly_distribution", col_keys=["visit_start"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1856,13 +1958,13 @@ elif selected == "Analytics":
                             )
                             
                             st.plotly_chart(fig_units, use_container_width=False)
-                            create_download_button(fig_units, "ta_units_comparison")
+                            create_download_button(fig_units, "ta_units_comparison", col_keys=["units_requested", "units_used"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 5: Geographic/Institutional
-            st.markdown("### 🌍 Geographic and Institutional Analysis")
+            st.markdown("### ðŸŒÂ Geographic and Institutional Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1881,7 +1983,7 @@ elif selected == "Analytics":
                         color_palette=['#F39C12'] * len(affil_data)
                     )
                     st.plotly_chart(fig_affil, use_container_width=False)
-                    create_download_button(fig_affil, "ta_top_institutions")
+                    create_download_button(fig_affil, "ta_top_institutions", col_keys=["pi_affiliation"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1892,18 +1994,18 @@ elif selected == "Analytics":
                     fig_wp = create_professional_pie_chart(wp_data, 'Work Package', 'Count',
                                                            'Associated Work Packages')
                     st.plotly_chart(fig_wp, use_container_width=False)
-                    create_download_button(fig_wp, "ta_work_packages")
+                    create_download_button(fig_wp, "ta_work_packages", col_keys=["associated_wp"], access_type="TA")
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Transnational Access data available")
 
 # TRANSNATIONAL ACCESS COMPREHENSIVE DASHBOARD (only when TA is selected)
 elif selected == "Transnational Access":
-    st.markdown("<span class='small'>Home ▸ Transnational Access Dashboard</span>", unsafe_allow_html=True)
-    st.header("🌍 Transnational Access Comprehensive Dashboard")
+    st.markdown("<span class='small'>Home â–¸ Transnational Access Dashboard</span>", unsafe_allow_html=True)
+    st.header("ðŸŒÂ Transnational Access Comprehensive Dashboard")
     
     if ta_df is not None and not ta_df.empty:
-        st.markdown("### 📊 TA Applications Status Overview")
+        st.markdown("### ðŸ“Š TA Applications Status Overview")
         st.markdown("---")
         
         ta_display = ta_df.copy()
@@ -1922,7 +2024,7 @@ elif selected == "Transnational Access":
                 fig_status = px.sunburst(
                     ta_display,
                     path=['call', 'ta_host', 'project_stage'],
-                    title='TA Applications: Hierarchical View (Call â†’ Host â†’ Status)',
+                    title='TA Applications: Hierarchical View (Call Ã¢â€ â€™ Host Ã¢â€ â€™ Status)',
                     color='project_stage',
                     color_discrete_map={
                         'Visit/access exhausted': COLORS['exhausted'],
@@ -1941,13 +2043,13 @@ elif selected == "Transnational Access":
                 )
                 
                 st.plotly_chart(fig_status, use_container_width=True)
-                create_download_button(fig_status, "ta_status_sunburst")
+                create_download_button(fig_status, "ta_status_sunburst", col_keys=["call", "ta_host", "project_stage"], access_type="TA")
             
             st.markdown("</div>", unsafe_allow_html=True)
         
         with col2:
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("#### 📊 Key Metrics")
+            st.markdown("#### ðŸ“Š Key Metrics")
             
             total_apps = len(ta_display)
             total_calls = ta_display['call'].nunique() if 'call' in ta_display.columns else 0
@@ -1958,7 +2060,7 @@ elif selected == "Transnational Access":
             st.metric("TA Hosts", total_hosts)
             
             if 'project_stage' in ta_display.columns:
-                st.markdown("#### 📊 Status Breakdown")
+                st.markdown("#### ðŸ“Š Status Breakdown")
                 status_counts = ta_display['project_stage'].value_counts()
                 for status, count in status_counts.items():
                     percentage = (count / total_apps) * 100
@@ -1969,7 +2071,7 @@ elif selected == "Transnational Access":
         st.markdown("---")
         
         # Matrix views
-        st.markdown("### 📊 Detailed Application Matrix")
+        st.markdown("### ðŸ“Š Detailed Application Matrix")
         
         col1, col2 = st.columns(2)
         
@@ -2003,7 +2105,7 @@ elif selected == "Transnational Access":
                 )
                 
                 st.plotly_chart(fig_matrix, use_container_width=True)
-                create_download_button(fig_matrix, "ta_call_host_matrix")
+                create_download_button(fig_matrix, "ta_call_host_matrix", col_keys=["call", "ta_host"], access_type="TA")
             
             st.markdown("</div>", unsafe_allow_html=True)
         
@@ -2040,14 +2142,14 @@ elif selected == "Transnational Access":
                 )
                 
                 st.plotly_chart(fig_call_status, use_container_width=True)
-                create_download_button(fig_call_status, "ta_status_by_call")
+                create_download_button(fig_call_status, "ta_status_by_call", col_keys=["call", "project_stage"], access_type="TA")
             
             st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("---")
         
         # Timeline
-        st.markdown("### 📊 Application Timeline")
+        st.markdown("### ðŸ“Š Application Timeline")
         
         if 'visit_start' in ta_display.columns and 'visit_end' in ta_display.columns:
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
@@ -2102,7 +2204,7 @@ elif selected == "Transnational Access":
                 )
                 
                 st.plotly_chart(fig_timeline, use_container_width=True)
-                create_download_button(fig_timeline, "ta_timeline")
+                create_download_button(fig_timeline, "ta_timeline", col_keys=["visit_start", "visit_end"], access_type="TA")
             else:
                 st.info("No timeline data available with valid start/end dates")
             
@@ -2111,7 +2213,7 @@ elif selected == "Transnational Access":
         st.markdown("---")
         
         # Detailed table
-        st.markdown("### 📊 Detailed Application Information")
+        st.markdown("### ðŸ“Š Detailed Application Information")
         
         display_cols = ['project_id', 'installation_id', 'call', 'application_number', 'ta_host', 
                        'project_stage', 'pi_gender', 'unit_of_access', 'number_of_users']
@@ -2164,7 +2266,7 @@ elif selected == "Transnational Access":
             
             csv = filtered_table.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📊 Download Filtered Data (CSV)",
+                label="ðŸ“Š Download Filtered Data (CSV)",
                 data=csv,
                 file_name="ta_applications_filtered.csv",
                 mime="text/csv",
@@ -2186,12 +2288,12 @@ elif selected == "Transnational Access":
 # ===============================================================================================
 
 if selected == "KPI":
-    st.title("🎯 Key Performance Indicators (KPI)")
+    st.title("ðŸŽ¯ Key Performance Indicators (KPI)")
     st.markdown("---")
     
     if project_label == "Virtual Access":
         # ==================== VIRTUAL ACCESS KPI - FULL IMPLEMENTATION ====================
-        st.header("📊 Virtual Access KPIs")
+        st.header("ðŸ“Š Virtual Access KPIs")
         
         # Load raw data to access KPI columns by index
         try:
@@ -2207,7 +2309,7 @@ if selected == "KPI":
                 # Running locally - use JSON file
                 json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
                 if not os.path.exists(json_keyfile_path):
-                    st.error("❌ Credentials not found. Cannot load KPI data.")
+                    st.error("âŒ Credentials not found. Cannot load KPI data.")
                     raise Exception("Credentials missing")
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
             
@@ -2225,7 +2327,7 @@ if selected == "KPI":
             # Values: YES, NO, Partially, In progress
             col_35 = df_raw.iloc[:, 35]  # Usage Logging
 
-            st.subheader("🔍 KPI-1: Usage Logging System")
+            st.subheader("ðŸ” KPI-1: Usage Logging System")
             st.caption("Tracks installations with active usage logging capabilities")
 
             # Calculate usage logging statistics (handles all 4 categories)
@@ -2264,14 +2366,14 @@ if selected == "KPI":
                 # Show all 4 categories
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    st.metric("✅ Fully Implemented", yes_count, 
+                    st.metric("âœ… Fully Implemented", yes_count, 
                              delta=f"{yes_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("🟡 Partially", partially_count,
+                    st.metric("ðŸŸ¡ Partially", partially_count,
                              delta=f"{partially_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
                 with col_b:
-                    st.metric("🔄 In Progress", in_progress_count,
+                    st.metric("ðŸ”„ In Progress", in_progress_count,
                              delta=f"{in_progress_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("❌ Not Implemented", no_count,
+                    st.metric("âŒ Not Implemented", no_count,
                              delta=f"{no_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
 
             with col2:
@@ -2301,10 +2403,15 @@ if selected == "KPI":
                     font=dict(family=FONT_FAMILY)
                 )
                 st.plotly_chart(fig, use_container_width=True)
+                st.markdown(
+                    '<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0;">'
+                    'Source column: Column AJ – Does your installation have Usage Logging system in place?</p>',
+                    unsafe_allow_html=True
+                )
 
             # Summary text
             implementation_rate = ((yes_count + partially_count) / total_installations * 100) if total_installations > 0 else 0
-            st.caption(f"📊 **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
+            st.caption(f"ðŸ“Š **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
 
             st.markdown("---")
 
@@ -2312,7 +2419,7 @@ if selected == "KPI":
             # Column 37: Total data items/records
             # Column 39 (AN): Datasets at start or current datasets
             # Column 40 (AO): New datasets or volume
-            st.subheader("📚 KPI-2: Accessible Datasets")
+            st.subheader("ðŸ“š KPI-2: Accessible Datasets")
             st.caption("Tracks the number of datasets and data records available through installations")
 
             col_37 = df_raw.iloc[:, 37]  # Total data items/records
@@ -2331,27 +2438,24 @@ if selected == "KPI":
                 st.markdown("**Dataset Statistics:**")
     
                 if len(data_items) > 0:
-                    st.metric("🗂️ Total Data Items/Records", f"{int(data_items.sum()):,}",
+                    st.metric("ðŸ—‚ï¸ Total Data Items/Records", f"{int(data_items.sum()):,}",
                              help="Total number of individual data records across all installations")
-                    st.metric("📊 Average per Installation", f"{data_items.mean():.0f}",
+                    st.metric("ðŸ“Š Average per Installation", f"{data_items.mean():.0f}",
                              help="Average data items per installation")
     
                 if len(datasets_col_39) > 0:
-                    st.metric("📚 Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
+                    st.metric("ðŸ“š Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
                              help="Total number of distinct datasets")
-                    st.metric("📈 Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
+                    st.metric("ðŸ“ˆ Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
 
             with col2:
                 # Create bar chart comparing installations
                 if len(data_items) > 0:
-                    # Top 10 installations by data items - using Installation ID from column G (index 6)
-                    installation_ids = df_raw.iloc[:, 6]  # Column G: Installation ID
+                    # Top 10 installations by data items
                     top_installations = data_items.nlargest(10)
-                    top_installation_ids = [installation_ids.iloc[idx] if idx < len(installation_ids) else f"Installation {idx+1}" 
-                                           for idx in top_installations.index]
         
                     fig = go.Figure(data=[go.Bar(
-                        x=top_installation_ids,
+                        x=[f"Installation {i+1}" for i in range(len(top_installations))],
                         y=top_installations.values,
                         marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
                         text=[f"{int(v):,}" for v in top_installations.values],
@@ -2372,130 +2476,65 @@ if selected == "KPI":
                         yaxis=dict(type='log')  # Log scale for better visualization
                     )
                     st.plotly_chart(fig, use_container_width=True)
+                    st.markdown(
+                        '<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0;">'
+                        'Source columns: Col AL – Total data items/records | Col AN – Datasets</p>',
+                        unsafe_allow_html=True
+                    )
 
-            # ==================== KPI 3: NUMBER OF USERS SERVED ====================
-            # Column 37 (AL): Number of users served
-            st.markdown("---")
-            st.subheader("👥 KPI-3: Number of Users Served")
-            st.caption("Distribution of users across all installations")
-            
-            col_37_users = df_raw.iloc[:, 37]  # Number of users served (AL column)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Calculate user statistics
-                users_served = pd.to_numeric(col_37_users, errors='coerce').dropna()
-                
-                if len(users_served) > 0:
-                    st.metric("Total Users Served", f"{int(users_served.sum()):,}")
-                    st.metric("Average per Installation", f"{users_served.mean():.0f}")
-                    st.metric("Median Users", f"{users_served.median():.0f}")
-                    st.metric("Max Users (Single Installation)", f"{int(users_served.max()):,}")
-                else:
-                    st.info("No user data available")
-            
-            with col2:
-                # Create histogram
-                if len(users_served) > 0:
+            # Additional visualization: Distribution of datasets
+            if len(datasets_col_39) > 0:
+                st.markdown("---")
+                st.markdown("**Dataset Distribution Analysis:**")
+    
+                col1, col2 = st.columns(2)
+    
+                with col1:
+                    # Histogram of dataset counts
                     fig = go.Figure(data=[go.Histogram(
-                        x=users_served,
+                        x=datasets_col_39,
                         nbinsx=20,
-                        marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
+                        marker=dict(color=COLORS['blue_palette'][2], line=dict(color='white', width=1)),
                         name='Installations'
                     )])
-                    
+        
                     fig.update_layout(
                         title=dict(
-                            text="<b>Distribution of Users Served</b>",
+                            text="<b>Distribution of Dataset Counts</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        xaxis_title="<b>Number of Users</b>",
+                        xaxis_title="<b>Number of Datasets</b>",
                         yaxis_title="<b>Number of Installations</b>",
-                        height=400,
+                        height=350,
                         showlegend=False,
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-            
-            # ==================== KPI 4: DATASETS - START VS NEW ====================
-            # Columns: AN (39), AO (40), AQ (42), AR (43)
-            st.markdown("---")
-            st.subheader("📚 KPI-4: Accessible Datasets and New Datasets")
-            st.caption("Comparison of datasets at project start versus new datasets added")
-            
-            # Extract dataset columns
-            col_39_start = df_raw.iloc[:, 39]  # Datasets at start (AN)
-            col_40_vol_start = df_raw.iloc[:, 40]  # Volume at start (AO)
-            col_42_new = df_raw.iloc[:, 42]  # New datasets (AQ)
-            col_43_new_vol = df_raw.iloc[:, 43]  # New volume (AR)
-            
-            # Convert to numeric
-            datasets_at_start = pd.to_numeric(col_39_start, errors='coerce').dropna()
-            volume_at_start = pd.to_numeric(col_40_vol_start, errors='coerce').dropna()
-            new_datasets = pd.to_numeric(col_42_new, errors='coerce').dropna()
-            new_volume = pd.to_numeric(col_43_new_vol, errors='coerce').dropna()
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Display metrics
-                st.markdown("**At Project Start:**")
-                st.metric("Total Datasets", f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "N/A")
-                st.metric("Total Volume (TB)", f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "N/A")
-                
-                st.markdown("**New Datasets:**")
-                st.metric("New Datasets Added", f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "N/A")
-                st.metric("New Volume (TB)", f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "N/A")
-            
-            with col2:
-                # Create grouped bar chart
-                if len(datasets_at_start) > 0 or len(new_datasets) > 0:
-                    fig = go.Figure()
-                    
-                    # Add bars for datasets at start
-                    fig.add_trace(go.Bar(
-                        name='Datasets at Start',
-                        x=['Count', 'Volume (TB)'],
-                        y=[datasets_at_start.sum() if len(datasets_at_start) > 0 else 0, 
-                           volume_at_start.sum() if len(volume_at_start) > 0 else 0],
-                        marker=dict(color=COLORS['blue_palette'][0]),
-                        text=[f"{int(datasets_at_start.sum()):,}" if len(datasets_at_start) > 0 else "0", 
-                              f"{volume_at_start.sum():.2f}" if len(volume_at_start) > 0 else "0"],
-                        textposition='auto',
-                        textfont=dict(size=12, family=FONT_FAMILY)
-                    ))
-                    
-                    # Add bars for new datasets
-                    fig.add_trace(go.Bar(
-                        name='New Datasets',
-                        x=['Count', 'Volume (TB)'],
-                        y=[new_datasets.sum() if len(new_datasets) > 0 else 0, 
-                           new_volume.sum() if len(new_volume) > 0 else 0],
+    
+                with col2:
+                    # Box plot showing dataset distribution
+                    fig = go.Figure(data=[go.Box(
+                        y=datasets_col_39,
                         marker=dict(color=COLORS['success']),
-                        text=[f"{int(new_datasets.sum()):,}" if len(new_datasets) > 0 else "0", 
-                              f"{new_volume.sum():.2f}" if len(new_volume) > 0 else "0"],
-                        textposition='auto',
-                        textfont=dict(size=12, family=FONT_FAMILY)
-                    ))
-                    
+                        name='Dataset Count',
+                        boxmean='sd'  # Show mean and standard deviation
+                    )])
+        
                     fig.update_layout(
                         title=dict(
-                            text="<b>Datasets: Start vs New</b>",
+                            text="<b>Dataset Count Statistics</b>",
                             font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
                         ),
-                        xaxis_title="<b>Metric Type</b>",
-                        yaxis_title="<b>Value</b>",
-                        barmode='group',
-                        height=400,
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                        yaxis_title="<b>Number of Datasets</b>",
+                        height=350,
+                        showlegend=False,
                         font=dict(family=FONT_FAMILY)
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
             # Summary metrics table
             st.markdown("---")
-            st.subheader("📊 KPI Summary Table")
+            st.subheader("ðŸ“Š KPI Summary Table")
 
             kpi_summary = pd.DataFrame({
                 'KPI Metric': [
@@ -2521,14 +2560,15 @@ if selected == "KPI":
             })
 
             st.dataframe(kpi_summary, use_container_width=True, hide_index=True)
-        
+
         except Exception as e:
-            st.error(f"❌ Error loading KPI data: {str(e)}")
-            st.info("Please check your Google Sheets connection and credentials.")
-    
+            st.error(f"Error loading KPI data: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+
     else:  # Transnational Access
         # ==================== TRANSNATIONAL ACCESS KPI - UNDER DEVELOPMENT ====================
-        st.info("🚧 This section is currently under development. KPI metrics and visualizations will be available soon.")
+        st.info("\U0001f6a7 This section is currently under development. KPI metrics and visualizations will be available soon.")
         
         # Show preview of coming features
         st.subheader("Coming Soon:")
@@ -2538,7 +2578,7 @@ if selected == "KPI":
         with col1:
             st.markdown("""
             <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #3498DB;">
-                <h4>📊 Project Metrics</h4>
+                <h4>Project Metrics</h4>
                 <ul>
                     <li>Project Completion Rates</li>
                     <li>Visit/Access Statistics</li>
@@ -2550,7 +2590,7 @@ if selected == "KPI":
         with col2:
             st.markdown("""
             <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #27AE60;">
-                <h4>👥 User Metrics</h4>
+                <h4>User Metrics</h4>
                 <ul>
                     <li>Total Users by Call</li>
                     <li>Gender Distribution</li>
@@ -2562,7 +2602,7 @@ if selected == "KPI":
         with col3:
             st.markdown("""
             <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #F39C12;">
-                <h4>📈 Outcomes</h4>
+                <h4>Outcomes</h4>
                 <ul>
                     <li>Expected vs Delivered Assets</li>
                     <li>Integration Strategies</li>
@@ -2584,7 +2624,7 @@ if selected == "KPI":
 # ===============================================================================================
 
 elif selected == "Data":
-    st.markdown("<span class='small'>Home ▸ Data</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home â–¸ Data</span>", unsafe_allow_html=True)
     st.header("Data Table")
     
     if project_label == "Virtual Access":
@@ -2604,7 +2644,7 @@ elif selected == "Data":
             
             # Provide CSV download button (using cleaned dataframe)
             st.download_button(
-                "📊 Download CSV", 
+                "ðŸ“Š Download CSV", 
                 data=va_df_display.to_csv(index=False).encode("utf-8"),
                 file_name="VA_data.csv", 
                 mime="text/csv"
@@ -2619,7 +2659,7 @@ elif selected == "Data":
             
             # Provide CSV download button
             st.download_button(
-                "📊 Download CSV", 
+                "ðŸ“Š Download CSV", 
                 data=ta_df.to_csv(index=False).encode("utf-8"),
                 file_name="TA_data.csv", 
                 mime="text/csv"
@@ -2629,10 +2669,10 @@ elif selected == "Data":
 
 
 elif selected == "Contact":
-    st.markdown("<span class='small'>Home ▸ Contact</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home â–¸ Contact</span>", unsafe_allow_html=True)
     st.header("Contact")
-    st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
-    st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
+    st.write("â€¢ Conceptor: Jan Michalek and Juliano Ramanantsoa")
+    st.write("â€¢ Reach out: heriniaina.j.ramanantsoa@uib.no")
 
 
 
