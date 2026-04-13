@@ -34,7 +34,7 @@
 # - matplotlib: pip install matplotlib
 # - seaborn: pip install seaborn
 # - streamlit-option-menu: pip install streamlit-option-menu
-# - streamlit-antd-components: pip install streamlit-antd-components (optional)
+
 # - kaleido: pip install -U kaleido (for PNG export of charts)
 # - gspread: pip install gspread (for Google Sheets integration)
 # - oauth2client: pip install oauth2client (for Google Sheets authentication)
@@ -58,6 +58,11 @@ from streamlit_option_menu import option_menu
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+
+# ===============================================================================================
+# STREAMLIT PAGE CONFIGURATION — MUST BE FIRST STREAMLIT COMMAND
+# ===============================================================================================
+st.set_page_config(page_title="ILM Geo-INQUIRE Dashboard", layout="wide", initial_sidebar_state="expanded")
 
 # ===============================================================================================
 # PASSWORD PROTECTION SYSTEM
@@ -124,7 +129,7 @@ def check_password():
             position: relative;
         }
         .feature-list li:before {
-            content: "âœ“";
+            content: "\2713";
             position: absolute;
             left: 0;
             font-weight: bold;
@@ -183,7 +188,7 @@ def check_password():
                 For access credentials or technical support, please contact the project administrator.
             </p>
             <p style="font-size: 0.8rem; margin-top: 1rem;">
-                Â© 2025 Geo-INQUIRE Project | University of Bergen
+                © 2025 Geo-INQUIRE Project | University of Bergen
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -203,12 +208,6 @@ if not check_password():
 
 
 
-# ===============================================================================================
-# STREAMLIT PAGE CONFIGURATION
-# ===============================================================================================
-# Sets up the initial page layout, title, and sidebar state
-# ===============================================================================================
-st.set_page_config(page_title="ILM Geo-INQUIRE Dashboard", layout="wide", initial_sidebar_state="expanded")
 
 # ===============================================================================================
 # PROFESSIONAL COLOR PALETTE
@@ -326,14 +325,56 @@ with right:
 # Allows users to switch between Virtual Access and Transnational Access projects
 # ===============================================================================================
 with st.sidebar:
-    st.markdown("### Project")
-    try:
-        import streamlit_antd_components as sac
-        project_label = sac.segmented(items=['Virtual Access', 'Transnational Access'], align='left', size='sm', color='blue')
-    except Exception:
-        project_label = st.radio(" ", ["Virtual Access", "Transnational Access"], horizontal=True, label_visibility="collapsed")
-    
-    st.caption(f"Active: **{project_label}**")
+    # Bold project toggle header
+    st.markdown(
+        '<p style="font-size:1.1rem; font-weight:800; color:#2C3E50; '
+        'letter-spacing:0.5px; margin-bottom:0.3rem;">PROJECT</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Inject custom CSS to make the radio buttons large, bold & visible
+    st.markdown("""
+    <style>
+    /* Bold project toggle buttons */
+    div[data-testid="stSidebar"] .stRadio > div {
+        gap: 0.25rem;
+    }
+    div[data-testid="stSidebar"] .stRadio label {
+        font-weight: 700 !important;
+        font-size: 1.05rem !important;
+        padding: 0.55rem 1rem !important;
+        border: 2px solid #3498DB !important;
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        background: white !important;
+    }
+    div[data-testid="stSidebar"] .stRadio label:hover {
+        background: #EBF5FB !important;
+        border-color: #2980B9 !important;
+    }
+    div[data-testid="stSidebar"] .stRadio label[data-checked="true"],
+    div[data-testid="stSidebar"] .stRadio label:has(input:checked) {
+        background: linear-gradient(135deg, #3498DB 0%, #2980B9 100%) !important;
+        color: white !important;
+        border-color: #2980B9 !important;
+        box-shadow: 0 2px 8px rgba(52,152,219,0.35) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    project_label = st.radio(
+        "Select Project",
+        ["Virtual Access", "Transnational Access"],
+        horizontal=False,
+        label_visibility="collapsed",
+    )
+
+    st.markdown(
+        f'<p style="font-size:0.8rem; color:#666; margin-top:0.3rem;">'
+        f'Active: <strong>{project_label}</strong></p>',
+        unsafe_allow_html=True,
+    )
 
 # ===============================================================================================
 # TOP NAVIGATION MENU
@@ -546,13 +587,13 @@ def load_google_sheets_data():
                 # Running locally - use JSON file
                 json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
                 if not os.path.exists(json_keyfile_path):
-                    st.error(f"âŒ Credentials file not found: {json_keyfile_path}")
-                    st.info("ðŸ“ Place your Google service account JSON file in the same directory as this app")
+                    st.error(f"Credentials file not found: {json_keyfile_path}")
+                    st.info("Place your Google service account JSON file in the same directory as this app")
                     return None, None, "Credentials file missing"
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
                 client = gspread.authorize(creds)
         except Exception as e:
-            st.error(f"âŒ Authentication error: {str(e)}")
+            st.error(f"❌ Authentication error: {str(e)}")
             return None, None, f"Auth error: {str(e)}"
         
         # Use the correct spreadsheet URL
@@ -564,7 +605,7 @@ def load_google_sheets_data():
             worksheet_va = spreadsheet.worksheet("ILM_Connector")
             data_va = worksheet_va.get_all_values()
             if len(data_va) < 4:
-                st.warning("âš ï¸ Virtual Access worksheet has insufficient data")
+                st.warning("⚠️ Virtual Access worksheet has insufficient data")
                 df_va = pd.DataFrame()
             else:
                 df_va = pd.DataFrame(data_va[4:], columns=data_va[3])
@@ -665,12 +706,12 @@ def load_google_sheets_data():
                         df_va[col] = df_va[col].apply(clean_implementation_value)
                 
         except gspread.exceptions.WorksheetNotFound:
-            st.error("âŒ Worksheet 'ILM_Connector' not found!")
-            st.info(f"ðŸ“ Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
+            st.error("❌ Worksheet 'ILM_Connector' not found!")
+            st.info(f"🔍 Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
             return None, None, "VA worksheet not found"
         except Exception as e:
             import traceback
-            st.error(f"âŒ Error loading VA data: {str(e)}")
+            st.error(f"❌ Error loading VA data: {str(e)}")
             st.code(traceback.format_exc())
             return None, None, f"VA data error: {str(e)}"
         
@@ -721,27 +762,27 @@ def load_google_sheets_data():
                 df_ta = df_ta.rename(columns=existing_renames)
                 
         except gspread.exceptions.WorksheetNotFound:
-            st.warning("âš ï¸ Worksheet 'ILM_Connector_TA' not found (optional)")
+            st.warning("⚠️ Worksheet 'ILM_Connector_TA' not found (optional)")
             df_ta = pd.DataFrame()
         except Exception as e:
-            st.warning(f"âš ï¸ Error loading TA data: {str(e)}")
+            st.warning(f"⚠️ Error loading TA data: {str(e)}")
             df_ta = pd.DataFrame()
         
         return df_va, df_ta, None
         
     except gspread.exceptions.APIError as e:
         error_msg = f"Google Sheets API Error: {str(e)}"
-        st.error(f"âŒ {error_msg}")
-        st.info("ðŸ’¡ Make sure the sheet is shared with your service account email")
+        st.error(f"❌ {error_msg}")
+        st.info("💡 Make sure the sheet is shared with your service account email")
         return None, None, error_msg
     except gspread.exceptions.SpreadsheetNotFound:
         error_msg = "Spreadsheet not found or not accessible"
-        st.error(f"âŒ {error_msg}")
-        st.info("ðŸ’¡ Check: 1) Sheet URL is correct, 2) Sheet is shared with service account")
+        st.error(f"❌ {error_msg}")
+        st.info("💡 Check: 1) Sheet URL is correct, 2) Sheet is shared with service account")
         return None, None, error_msg
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        st.error(f"âŒ {error_msg}")
+        st.error(f"❌ {error_msg}")
         import traceback
         st.code(traceback.format_exc())
         return None, None, error_msg
@@ -752,17 +793,17 @@ va_df_gs, ta_df_gs, error = load_google_sheets_data()
 if va_df_gs is not None and not va_df_gs.empty:
     # SUCCESS: Using Google Sheets (real-time data)
     va_df, ta_df = va_df_gs, ta_df_gs
-    data_source = "Google Sheets âœ… (Real-time)"
+    data_source = "Google Sheets ✅ (Real-time)"
 else:
     # FALLBACK: Try Excel file as backup
-    st.warning("âš ï¸ Google Sheets not available - trying Excel backup...")
+    st.warning("⚠️ Google Sheets not available - trying Excel backup...")
     if error:
         st.error(f"Error details: {error}")
     va_df, ta_df = load_excel_data()
     data_source = "Excel File (Backup)"
     
     if va_df is None or va_df.empty:
-        st.error("âŒ No data available! Please check:")
+        st.error("❌ No data available! Please check:")
         st.markdown("""
         1. **Google Sheets Setup:**
            - Credentials file: `valiant-splicer-409609-e34abed30cc1.json` in same folder
@@ -1051,7 +1092,7 @@ def create_enhanced_heatmap(df):
                                 edgecolor='gray', alpha=0.9, linewidth=2))
                 
                 # Implemented count - bottom left corner
-                ax.text(j+0.18, i+0.82, f'{int(implemented_matrix[i,j])}âœ“', 
+                ax.text(j+0.18, i+0.82, f'{int(implemented_matrix[i,j])}✓', 
                        ha='center', va='center',
                        color='#145A32', fontsize=11, fontweight='bold',
                        bbox=dict(boxstyle='round,pad=0.2', facecolor='#A9DFBF', 
@@ -1229,7 +1270,7 @@ def create_professional_pie_chart(df, names, values, title, color_map=None):
 # ------------------------------- MAIN CONTENT -------------------------------
 
 if selected == "Dashboard":
-    st.markdown(f"<span class='small'>Home →¸ Dashboard ({data_source})</span>", unsafe_allow_html=True)
+    st.markdown(f"<span class='small'>Home → Dashboard ({data_source})</span>", unsafe_allow_html=True)
     st.header("Overview")
     
     if project_label == "Virtual Access":
@@ -1536,7 +1577,7 @@ if selected == "Dashboard":
                         )
                         
                         add_source_annotation(["compliant_ri", "implementation_status", "data_repr"], access_type="VA")
-                        st.caption("**Legend:** Large numbers in center = Total services | Green boxes with âœ“ = Implemented services")
+                        st.caption("**Legend:** Large numbers in center = Total services | Green boxes with ✓ = Implemented services")
                     else:
                         st.info("Heatmap data not available")
                 except Exception as e:
@@ -1599,7 +1640,7 @@ if selected == "Dashboard":
             st.warning("No Transnational Access data available")
 
 elif selected == "Analytics":
-    st.markdown("<span class='small'>Home →¸ Analytics</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home → Analytics</span>", unsafe_allow_html=True)
     st.header("Detailed Analytics")
     
     if project_label == "Virtual Access":
@@ -1999,296 +2040,8 @@ elif selected == "Analytics":
         else:
             st.warning("No Transnational Access data available")
 
-# TRANSNATIONAL ACCESS COMPREHENSIVE DASHBOARD (only when TA is selected)
-elif selected == "Transnational Access":
-    st.markdown("<span class='small'>Home →¸ Transnational Access Dashboard</span>", unsafe_allow_html=True)
-    st.header("ðŸŒÂ Transnational Access Comprehensive Dashboard")
-    
-    if ta_df is not None and not ta_df.empty:
-        st.markdown("### 📊 TA Applications Status Overview")
-        st.markdown("---")
-        
-        ta_display = ta_df.copy()
-        
-        if 'project_id' in ta_display.columns:
-            ta_display['call_display'] = ta_display['call']
-            ta_display['app_num'] = ta_display['application_number']
-        
-        # Main visualization
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            
-            if 'call' in ta_display.columns and 'ta_host' in ta_display.columns and 'project_stage' in ta_display.columns:
-                fig_status = px.sunburst(
-                    ta_display,
-                    path=['call', 'ta_host', 'project_stage'],
-                    title='TA Applications: Hierarchical View (Call Ã¢â€ â€™ Host Ã¢â€ â€™ Status)',
-                    color='project_stage',
-                    color_discrete_map={
-                        'Visit/access exhausted': COLORS['exhausted'],
-                        'Time window for the visit/access fixed': COLORS['fixed'],
-                        'Data/products ready': COLORS['ready'],
-                        'PI contacted': COLORS['contacted'],
-                        'Project details negotiated': COLORS['negotiated']
-                    },
-                    height=600
-                )
-                
-                fig_status.update_layout(
-                    font=dict(family=FONT_FAMILY, size=12),
-                    title=dict(font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark'])),
-                    margin=dict(l=20, r=20, t=80, b=20)
-                )
-                
-                st.plotly_chart(fig_status, use_container_width=True)
-                create_download_button(fig_status, "ta_status_sunburst", col_keys=["call", "ta_host", "project_stage"], access_type="TA")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("#### ðŸ“Š Key Metrics")
-            
-            total_apps = len(ta_display)
-            total_calls = ta_display['call'].nunique() if 'call' in ta_display.columns else 0
-            total_hosts = ta_display['ta_host'].nunique() if 'ta_host' in ta_display.columns else 0
-            
-            st.metric("Total Applications", total_apps)
-            st.metric("Number of Calls", total_calls)
-            st.metric("TA Hosts", total_hosts)
-            
-            if 'project_stage' in ta_display.columns:
-                st.markdown("#### ðŸ“Š Status Breakdown")
-                status_counts = ta_display['project_stage'].value_counts()
-                for status, count in status_counts.items():
-                    percentage = (count / total_apps) * 100
-                    st.caption(f"**{status}**: {count} ({percentage:.1f}%)")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Matrix views
-        st.markdown("### 🗂️ Detailed Application Matrix")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            
-            if 'call' in ta_display.columns and 'ta_host' in ta_display.columns:
-                call_host_matrix = ta_display.groupby(['call', 'ta_host']).size().reset_index(name='Applications')
-                call_host_pivot = call_host_matrix.pivot(index='ta_host', columns='call', values='Applications').fillna(0)
-                
-                fig_matrix = go.Figure(data=go.Heatmap(
-                    z=call_host_pivot.values,
-                    x=call_host_pivot.columns,
-                    y=call_host_pivot.index,
-                    colorscale='Blues',
-                    text=call_host_pivot.values,
-                    texttemplate='%{text:.0f}',
-                    textfont={"size": 12},
-                    hoverongaps=False,
-                    hovertemplate='<b>%{y}</b><br>%{x}<br>Applications: %{z}<extra></extra>'
-                ))
-                
-                fig_matrix.update_layout(
-                    title='Applications Matrix: TA Host vs Call',
-                    xaxis_title='<b>Call</b>',
-                    yaxis_title='<b>TA Host</b>',
-                    font=dict(family=FONT_FAMILY, size=12),
-                    title_font=dict(size=TITLE_FONT_SIZE, color=COLORS['dark']),
-                    height=500,
-                    margin=dict(l=150, r=20, t=80, b=80)
-                )
-                
-                st.plotly_chart(fig_matrix, use_container_width=True)
-                create_download_button(fig_matrix, "ta_call_host_matrix", col_keys=["call", "ta_host"], access_type="TA")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            
-            if 'call' in ta_display.columns and 'project_stage' in ta_display.columns:
-                call_status = ta_display.groupby(['call', 'project_stage']).size().reset_index(name='count')
-                
-                fig_call_status = px.bar(
-                    call_status,
-                    x='call',
-                    y='count',
-                    color='project_stage',
-                    title='Application Status by Call',
-                    labels={'count': 'Number of Applications', 'call': 'Call', 'project_stage': 'Status'},
-                    color_discrete_map={
-                        'Visit/access exhausted': COLORS['exhausted'],
-                        'Time window for the visit/access fixed': COLORS['fixed'],
-                        'Data/products ready': COLORS['ready'],
-                        'PI contacted': COLORS['contacted'],
-                        'Project details negotiated': COLORS['negotiated']
-                    },
-                    height=500
-                )
-                
-                fig_call_status.update_layout(
-                    font=dict(family=FONT_FAMILY, size=12),
-                    title_font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark']),
-                    xaxis=dict(title='Call', tickfont=dict(size=TICK_FONT_SIZE)),
-                    yaxis=dict(title='Number of Applications', tickfont=dict(size=TICK_FONT_SIZE)),
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, font=dict(size=10)),
-                    margin=dict(l=60, r=60, t=80, b=120)
-                )
-                
-                st.plotly_chart(fig_call_status, use_container_width=True)
-                create_download_button(fig_call_status, "ta_status_by_call", col_keys=["call", "project_stage"], access_type="TA")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Timeline
-        st.markdown("### ðŸ“Š Application Timeline")
-        
-        if 'visit_start' in ta_display.columns and 'visit_end' in ta_display.columns:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            
-            timeline_df = ta_display[ta_display['visit_start'].notna() | ta_display['visit_end'].notna()].copy()
-            
-            if not timeline_df.empty:
-                fig_timeline = go.Figure()
-                
-                for idx, row in timeline_df.iterrows():
-                    if pd.notna(row['visit_start']) and pd.notna(row['visit_end']):
-                        try:
-                            start = pd.to_datetime(row['visit_start'])
-                            end = pd.to_datetime(row['visit_end'])
-                            
-                            status = row.get('project_stage', 'Unknown')
-                            if 'exhausted' in str(status).lower():
-                                color = COLORS['exhausted']
-                            elif 'fixed' in str(status).lower():
-                                color = COLORS['fixed']
-                            elif 'ready' in str(status).lower():
-                                color = COLORS['ready']
-                            else:
-                                color = COLORS['contacted']
-                            
-                            fig_timeline.add_trace(go.Scatter(
-                                x=[start, end],
-                                y=[row.get('project_id', idx), row.get('project_id', idx)],
-                                mode='lines+markers',
-                                line=dict(color=color, width=10),
-                                marker=dict(size=8),
-                                name=row.get('ta_host', 'Unknown'),
-                                hovertemplate=f"<b>{row.get('project_id', 'N/A')}</b><br>" +
-                                            f"Host: {row.get('ta_host', 'N/A')}<br>" +
-                                            f"Status: {status}<br>" +
-                                            f"Start: {start.strftime('%Y-%m-%d')}<br>" +
-                                            f"End: {end.strftime('%Y-%m-%d')}<extra></extra>",
-                                showlegend=False
-                            ))
-                        except:
-                            pass
-                
-                fig_timeline.update_layout(
-                    title='TA Visit Timeline',
-                    xaxis_title='<b>Date</b>',
-                    yaxis_title='<b>Project ID</b>',
-                    font=dict(family=FONT_FAMILY, size=11),
-                    title_font=dict(size=TITLE_FONT_SIZE, color=COLORS['dark']),
-                    height=max(400, len(timeline_df) * 25),
-                    margin=dict(l=120, r=20, t=80, b=60),
-                    hovermode='closest'
-                )
-                
-                st.plotly_chart(fig_timeline, use_container_width=True)
-                create_download_button(fig_timeline, "ta_timeline", col_keys=["visit_start", "visit_end"], access_type="TA")
-            else:
-                st.info("No timeline data available with valid start/end dates")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Detailed table
-        st.markdown("### ðŸ“Š Detailed Application Information")
-        
-        display_cols = ['project_id', 'installation_id', 'call', 'application_number', 'ta_host', 
-                       'project_stage', 'pi_gender', 'unit_of_access', 'number_of_users']
-        display_cols = [col for col in display_cols if col in ta_display.columns]
-        
-        if display_cols:
-            display_table = ta_display[display_cols].copy()
-            
-            column_names = {
-                'project_id': 'Project ID',
-                'installation_id': 'Installation',
-                'call': 'Call',
-                'application_number': 'App #',
-                'ta_host': 'TA Host',
-                'project_stage': 'Status',
-                'pi_gender': 'PI Gender',
-                'unit_of_access': 'Access Unit',
-                'number_of_users': 'Users'
-            }
-            display_table = display_table.rename(columns=column_names)
-            
-            # Filters
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if 'Call' in display_table.columns:
-                    calls = ['All'] + sorted(display_table['Call'].unique().tolist())
-                    selected_call = st.selectbox('Filter by Call', calls)
-            
-            with col2:
-                if 'TA Host' in display_table.columns:
-                    hosts = ['All'] + sorted(display_table['TA Host'].unique().tolist())
-                    selected_host = st.selectbox('Filter by TA Host', hosts)
-            
-            with col3:
-                if 'Status' in display_table.columns:
-                    statuses = ['All'] + sorted(display_table['Status'].unique().tolist())
-                    selected_status = st.selectbox('Filter by Status', statuses)
-            
-            # Apply filters
-            filtered_table = display_table.copy()
-            if selected_call != 'All' and 'Call' in filtered_table.columns:
-                filtered_table = filtered_table[filtered_table['Call'] == selected_call]
-            if selected_host != 'All' and 'TA Host' in filtered_table.columns:
-                filtered_table = filtered_table[filtered_table['TA Host'] == selected_host]
-            if selected_status != 'All' and 'Status' in filtered_table.columns:
-                filtered_table = filtered_table[filtered_table['Status'] == selected_status]
-            
-            st.dataframe(filtered_table, use_container_width=True, height=400)
-            
-            csv = filtered_table.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="ðŸ“Š Download Filtered Data (CSV)",
-                data=csv,
-                file_name="ta_applications_filtered.csv",
-                mime="text/csv",
-            )
-    else:
-        st.warning("No Transnational Access data available")
-
-
-# ===============================================================================================
-# =================================== KPI SECTION (UNDER DEVELOPMENT) ==========================
-# ===============================================================================================
-
-
-# ===============================================================================================
-# =================================== KPI SECTION ==============================================
-# ===============================================================================================
-# This section provides Key Performance Indicators for both Virtual Access and
-# Transnational Access projects. KPIs track usage, datasets, and performance metrics.
-# ===============================================================================================
-
-if selected == "KPI":
-    st.title("ðŸŽ¯ Key Performance Indicators (KPI)")
+elif selected == "KPI":
+    st.title("🎯 Key Performance Indicators (KPI)")
     st.markdown("---")
     
     if project_label == "Virtual Access":
@@ -2327,7 +2080,7 @@ if selected == "KPI":
             # Values: YES, NO, Partially, In progress
             col_35 = df_raw.iloc[:, 35]  # Usage Logging
 
-            st.subheader("ðŸ” KPI-1: Usage Logging System")
+            st.subheader("KPI-1: Usage Logging System")
             st.caption("Tracks installations with active usage logging capabilities")
 
             # Calculate usage logging statistics (handles all 4 categories)
@@ -2419,7 +2172,7 @@ if selected == "KPI":
             # Column 37: Total data items/records
             # Column 39 (AN): Datasets at start or current datasets
             # Column 40 (AO): New datasets or volume
-            st.subheader("## 📚 KPI-2: Accessible Datasets")
+            st.subheader("📚 KPI-2: Accessible Datasets")
             st.caption("Tracks the number of datasets and data records available through installations")
 
             col_37 = df_raw.iloc[:, 37]  # Total data items/records
@@ -2534,7 +2287,7 @@ if selected == "KPI":
 
             # Summary metrics table
             st.markdown("---")
-            st.subheader("## 📊 KPI Summary Table")
+            st.subheader("📊 KPI Summary Table")
 
             kpi_summary = pd.DataFrame({
                 'KPI Metric': [
@@ -2624,7 +2377,7 @@ if selected == "KPI":
 # ===============================================================================================
 
 elif selected == "Data":
-    st.markdown("<span class='small'>Home →¸ Data</span>", unsafe_allow_html=True)
+    st.markdown("<span class='small'>Home → Data</span>", unsafe_allow_html=True)
     st.header("Data Table")
     
     if project_label == "Virtual Access":
@@ -2673,7 +2426,3 @@ elif selected == "Contact":
     st.header("Contact")
     st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
-
-
-
-    
