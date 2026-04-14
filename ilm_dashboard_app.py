@@ -327,38 +327,44 @@ with right:
 with st.sidebar:
     # Bold project toggle header
     st.markdown(
-        '<p style="font-size:1.1rem; font-weight:800; color:#2C3E50; '
-        'letter-spacing:0.5px; margin-bottom:0.3rem;">PROJECT</p>',
+        '<p style="font-size:1.25rem; font-weight:900; color:#1a1a2e; '
+        'letter-spacing:1px; margin-bottom:0.5rem; text-transform:uppercase; '
+        'border-bottom:3px solid #3498DB; padding-bottom:0.3rem;">Select Project</p>',
         unsafe_allow_html=True,
     )
 
-    # Inject custom CSS to make the radio buttons large, bold & visible
+    # Inject custom CSS to make the radio buttons large, bold & highly visible
     st.markdown("""
     <style>
-    /* Bold project toggle buttons */
+    /* ===== BOLD PROJECT TOGGLE BUTTONS ===== */
     div[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.25rem;
+        gap: 0.5rem !important;
     }
-    div[data-testid="stSidebar"] .stRadio label {
-        font-weight: 700 !important;
-        font-size: 1.05rem !important;
-        padding: 0.55rem 1rem !important;
-        border: 2px solid #3498DB !important;
-        border-radius: 8px !important;
+    div[data-testid="stSidebar"] .stRadio > div > label {
+        font-weight: 900 !important;
+        font-size: 1.15rem !important;
+        padding: 0.75rem 1.2rem !important;
+        border: 3px solid #2980B9 !important;
+        border-radius: 10px !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        background: white !important;
+        transition: all 0.25s ease !important;
+        background: #F0F8FF !important;
+        display: flex !important;
+        align-items: center !important;
+        color: #1a1a2e !important;
+        letter-spacing: 0.3px !important;
     }
-    div[data-testid="stSidebar"] .stRadio label:hover {
-        background: #EBF5FB !important;
-        border-color: #2980B9 !important;
+    div[data-testid="stSidebar"] .stRadio > div > label:hover {
+        background: #D6EAF8 !important;
+        border-color: #1a6fb5 !important;
+        transform: translateX(3px);
     }
-    div[data-testid="stSidebar"] .stRadio label[data-checked="true"],
-    div[data-testid="stSidebar"] .stRadio label:has(input:checked) {
-        background: linear-gradient(135deg, #3498DB 0%, #2980B9 100%) !important;
+    div[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],
+    div[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
+        background: linear-gradient(135deg, #2980B9 0%, #1a5276 100%) !important;
         color: white !important;
-        border-color: #2980B9 !important;
-        box-shadow: 0 2px 8px rgba(52,152,219,0.35) !important;
+        border-color: #1a5276 !important;
+        box-shadow: 0 4px 12px rgba(41,128,185,0.45) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -371,10 +377,44 @@ with st.sidebar:
     )
 
     st.markdown(
-        f'<p style="font-size:0.8rem; color:#666; margin-top:0.3rem;">'
-        f'Active: <strong>{project_label}</strong></p>',
+        f'<p style="font-size:0.85rem; color:#555; margin-top:0.4rem; font-weight:600;">'
+        f'Active: <strong style="color:#2980B9;">{project_label}</strong></p>',
         unsafe_allow_html=True,
     )
+
+    # ---- Geo-INQUIRE Project Metadata ----
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:1.05rem; font-weight:800; color:#1a1a2e; '
+        'letter-spacing:0.5px; margin-bottom:0.3rem;">About Geo-INQUIRE</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,#f8f9fa 0%,#e8f4fd 100%);
+                padding:1rem; border-radius:10px; border-left:4px solid #2980B9;
+                font-size:0.82rem; color:#333; line-height:1.5; margin-bottom:0.8rem;">
+        <strong>Geosphere INfrastructures for QUestions into Integrated REsearch</strong><br><br>
+        Geo-INQUIRE is a <strong>Horizon Europe</strong> project enhancing access to
+        key geoscience data, products and services to monitor and model
+        geosphere dynamics at new levels of detail and precision.<br><br>
+        <strong>Key Facts:</strong><br>
+        &bull; <strong>Grant No:</strong> 101058518<br>
+        &bull; <strong>Call:</strong> HORIZON-INFRA-2021-SERV-01<br>
+        &bull; <strong>Partners:</strong> 51 organisations<br>
+        &bull; <strong>Facilities:</strong> 150+ VA & TA services<br>
+        &bull; <strong>RIs:</strong> EPOS, EMSO, ECCSEL
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="font-size:0.75rem; color:#888; line-height:1.4;">
+        <a href="https://www.geo-inquire.eu/" target="_blank"
+           style="color:#2980B9; text-decoration:none; font-weight:600;">
+           www.geo-inquire.eu</a><br>
+        University of Bergen, Norway<br>
+        © 2024–2026 Geo-INQUIRE Project
+    </div>
+    """, unsafe_allow_html=True)
 
 # ===============================================================================================
 # TOP NAVIGATION MENU
@@ -597,7 +637,8 @@ def load_google_sheets_data():
             return None, None, f"Auth error: {str(e)}"
         
         # Use the correct spreadsheet URL
-        sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=1373546546#gid=1373546546"
+        sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=2069740867#gid=2069740867"
+        
         spreadsheet = client.open_by_url(sheet_url)
         
         # Load Virtual Access data
@@ -2067,7 +2108,7 @@ elif selected == "KPI":
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
             
             client = gspread.authorize(creds)
-            sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=1373546546#gid=1373546546"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=2069740867#gid=2069740867"
             spreadsheet = client.open_by_url(sheet_url)
             worksheet_va = spreadsheet.worksheet("ILM_Connector")
             data_va = worksheet_va.get_all_values()
@@ -2426,3 +2467,8 @@ elif selected == "Contact":
     st.header("Contact")
     st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
     st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
+
+
+
+
+    
