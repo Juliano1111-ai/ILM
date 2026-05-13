@@ -1,63 +1,150 @@
 # =====================================================================================
-# ILM Geo-INQUIRE Dashboard - Professional Implementation Level Matrix
+# ILM Geo-INQUIRE Dashboard — Professional Implementation Level Matrix
 # =====================================================================================
 #
-# Copyright (c) 2024-2025 Geo-INQUIRE Project
+# Copyright (c) 2024–2026 Geo-INQUIRE Project
 # University of Bergen, Norway
 #
-# Developed by: Juliano Ramanantsoa (Assisted by Claude)
-# Project: Geo-INQUIRE - Implementation Level Matrix (ILM) Dashboard
-# Purpose: Interactive visualization and analytics for Virtual Access (VA) and 
-#          Transnational Access (TA) project data
+# Developed by: Juliano Ramanantsoa (assisted by Claude)
+# Project    : Geo-INQUIRE — Implementation Level Matrix (ILM) Dashboard
+# Purpose    : Interactive visualization and analytics for Virtual Access (VA)
+#              and Transnational Access (TA) project data
 #
-# This dashboard provides:
-# - Real-time data integration with Google Sheets
-# - Comprehensive analytics and KPI tracking
-# - Professional visualizations (300 DPI export capable)
-# - Multi-dimensional analysis (gender, hosts, temporal trends)
-# - Secure password-protected access
+# What this dashboard provides
+# ----------------------------
+#   * Real-time data integration with Google Sheets (primary source)
+#   * Excel-file fallback (GeoINQUIRE-ImplementationLevelMatrix.xlsx)
+#   * Comprehensive analytics and KPI tracking
+#   * Professional visualizations (300 DPI export via kaleido)
+#   * Multi-dimensional analysis (gender, hosts, temporal trends)
+#   * Secure password-protected access (session-based)
+#   * Per-figure year tabs (2023 / 2024 / 2025 / 2026) on the VA Dashboard
+#     and Analytics pages — placeholders where year-specific figures can be
+#     appended later by the user.
+#   * Data tab with a 4-row MultiIndex header that mirrors the first four
+#     rows of the source Excel sheet (group bands, topics, criteria, names).
 #
-# License: Internal use - Geo-INQUIRE Project
+# License: Internal use — Geo-INQUIRE Project
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
-# Version: 2.0
-# Last Updated: February 16, 2026
-# Contact: heriniaina.j.ramanantsoa@uib.no
+# Version     : 2.1
+# Last Updated: May 12, 2026
+# Contact     : heriniaina.j.ramanantsoa@uib.no
 #
 # =====================================================================================
-# INSTALLATION REQUIREMENTS:
-
-# - streamlit: pip install streamlit
-# - plotly: pip install plotly
-# - pandas: pip install pandas
-# - numpy: pip install numpy
-# - matplotlib: pip install matplotlib
-# - seaborn: pip install seaborn
-# - streamlit-option-menu: pip install streamlit-option-menu
-
-# - kaleido: pip install -U kaleido (for PNG export of charts)
-# - gspread: pip install gspread (for Google Sheets integration)
-# - oauth2client: pip install oauth2client (for Google Sheets authentication)
-# - openpyxl: pip install openpyxl (for Excel file reading)
-#
+# INSTALLATION REQUIREMENTS
+# =====================================================================================
+#   - streamlit              : pip install streamlit
+#   - plotly                 : pip install plotly
+#   - pandas                 : pip install pandas
+#   - numpy                  : pip install numpy
+#   - matplotlib             : pip install matplotlib
+#   - seaborn                : pip install seaborn
+#   - streamlit-option-menu  : pip install streamlit-option-menu
+#   - kaleido                : pip install -U kaleido     (PNG export at 300 DPI)
+#   - gspread                : pip install gspread        (Google Sheets API)
+#   - oauth2client           : pip install oauth2client   (Google Sheets auth)
+#   - openpyxl               : pip install openpyxl       (Excel file reading)
 # =====================================================================================
 
-import os
-import io
-import re
-import numpy as np
-import pandas as pd
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import seaborn as sns
-from streamlit_option_menu import option_menu
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
+# --- Standard library imports ---------------------------------------------------
+import os                                          # Filesystem checks (logo, credentials)
+import io                                          # In-memory bytes buffers for downloads
+import re                                          # Regex helpers (Call number extraction)
+from datetime import datetime                      # Used for date stamps and conversions
+
+# --- Third-party scientific stack ----------------------------------------------
+import numpy as np                                 # Numeric arrays for matrices/heatmap
+import pandas as pd                                # Tabular data manipulation
+
+# --- Streamlit framework + UI helpers ------------------------------------------
+import streamlit as st                             # Web UI framework
+from streamlit_option_menu import option_menu      # Pretty horizontal top-navigation menu
+
+# --- Plotting libraries --------------------------------------------------------
+import plotly.graph_objects as go                  # Low-level Plotly (bars, pies, scatter)
+import plotly.express as px                        # High-level Plotly (grouped bars)
+from plotly.subplots import make_subplots          # (Reserved for multi-panel figures)
+import matplotlib.pyplot as plt                    # Used only for the heatmap figure
+import matplotlib.patches as mpatches              # Legend patches (heatmap)
+import seaborn as sns                              # Heatmap styling
+
+# --- Google Sheets API ---------------------------------------------------------
+import gspread                                                          # Sheets client
+from oauth2client.service_account import ServiceAccountCredentials      # Service-account auth
+
+# ===============================================================================================
+# GLOBAL CONSTANTS — paths, sheet names, URLs, and the year-tab range
+# ===============================================================================================
+# Every constant below is annotated line-by-line so you (Juliano) can
+# adjust any of them without having to read the rest of the file.
+# Change a value here and the rest of the dashboard picks it up
+# automatically; nothing downstream hard-codes these names.
+# ===============================================================================================
+
+# --- Excel fallback workbook ----------------------------------------------------
+# Primary path searched on disk when Google Sheets is unavailable. This MUST
+# match the filename you keep in the same folder as ilm_dashboard_app.py.
+# If you ever rename the workbook (e.g. to a new year's export), change only
+# this one line. The .xlsx must live in the repository root next to the
+# Python script.
+EXCEL_PATH          = "ILM_Python_2.xlsx"
+
+# Optional secondary path — tried if EXCEL_PATH is missing. Leave it equal
+# to EXCEL_PATH (or to "") if you only ever keep one Excel file around.
+# Useful when you have a backup snapshot under a second name during a
+# migration; the loader silently tries this one second.
+EXCEL_PATH_LEGACY   = "ILM_Python_2.xlsx"
+
+# --- Google Sheets — the live data source --------------------------------------
+# Full URL of the working spreadsheet, including the gid of the worksheet
+# you want the dashboard to open by default. If you ever migrate to a new
+# Google Sheet, paste its full URL here (keep the gid query parameter so
+# the right tab is selected). The string is split across three lines purely
+# for readability — Python concatenates adjacent string literals.
+GOOGLE_SHEET_URL    = ("https://docs.google.com/spreadsheets/d/"
+                      "1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/"
+                      "edit?gid=2069740867#gid=2069740867")
+
+# Filename of the Google service-account JSON used for authentication.
+# Must sit in the same folder as this script for local runs. On Streamlit
+# Cloud this file is NOT used — the secret is read from `st.secrets`
+# instead. Keep this name in .gitignore so the key is never pushed.
+GOOGLE_CREDS_FILE   = "valiant-splicer-409609-e34abed30cc1.json"
+
+# --- Sheet / worksheet names ---------------------------------------------------
+# Both loaders (Excel and Google Sheets) look for a "preferred" name first
+# and then fall back to a "legacy" name. That way the same code works no
+# matter which export you have in front of you.
+
+# VA sheet name in the *new* reference workbook (e.g. the
+# Implementation-Level-Matrix export you would download from the official
+# Geo-INQUIRE Google Drive). The Excel loader tries this name first.
+VA_SHEET_NAME       = "Implementation_Level_Matrix_VA"
+
+# TA sheet name in the *new* reference workbook. Same logic as VA.
+TA_SHEET_NAME       = "TA_Individual_Applications"
+
+# Legacy VA sheet name used by:
+#   * ILM_Python_2.xlsx  → tab is called "ILM_Connector_VA"
+#   * The live Google Sheet → tab is called "ILM_Connector" (no _VA suffix)
+# We keep the Excel form here because it is also what `load_excel_data`
+# reads; the Google Sheets loader hard-codes "ILM_Connector" separately
+# (see `load_google_sheets_data`).
+VA_SHEET_LEGACY     = "ILM_Connector_VA"
+
+# Legacy TA sheet name. Used by BOTH the Excel file and the Google Sheet —
+# the tab is named "ILM_Connector_TA" in both places.
+TA_SHEET_LEGACY     = "ILM_Connector_TA"
+
+# --- Year tabs around each figure ----------------------------------------------
+# These are the year tabs that appear under every chart on the VA Dashboard
+# and the Analytics page. Each tab currently shows the all-years figure as
+# a placeholder; replace the placeholder with a year-specific chart inside
+# `render_in_year_tabs` (search the file for ">>> APPEND YEAR-").
+# Add a year (e.g. 2027) by extending the tuple — the rest of the dashboard
+# picks it up automatically.
+YEAR_TABS           = (2023, 2024, 2025, 2026)
 
 # ===============================================================================================
 # STREAMLIT PAGE CONFIGURATION — MUST BE FIRST STREAMLIT COMMAND
@@ -447,15 +534,67 @@ selected = option_menu(
 # ===============================================================================================
 @st.cache_data(ttl=300)
 def load_excel_data():
-    """Load data from local Excel file"""
+    """
+    Load VA + TA data from the local Excel workbook (fallback source).
+
+    The reference workbook is the one the user attached in May 2026:
+        GeoINQUIRE-ImplementationLevelMatrix.xlsx
+    It contains the following sheets we care about:
+        * Implementation_Level_Matrix_VA  — Virtual Access ILM
+        * TA_Individual_Applications      — Transnational Access applications
+
+    Both sheets share the same 4-row header structure:
+        Row 1: group bands (e.g. "Implementation Level 1", "KPI-Virtual Access")
+        Row 2: per-column topics / questions
+        Row 3: criteria explanations
+        Row 4: actual column names               ← used as the DataFrame header
+        Row 5+: data rows                        ← actual records
+
+    Returns
+    -------
+    df_va         : pandas.DataFrame   (renamed columns for internal use)
+    df_ta         : pandas.DataFrame   (renamed columns for internal use)
+    va_header4    : list[list[str]]    Rows 1–4 of the VA sheet (for Data tab display)
+    ta_header4    : list[list[str]]    Rows 1–4 of the TA sheet (for Data tab display)
+    va_raw        : pandas.DataFrame   VA data with ORIGINAL Excel column names (for Data tab)
+    ta_raw        : pandas.DataFrame   TA data with ORIGINAL Excel column names (for Data tab)
+    """
     try:
-        excel_path = "ILM_Python_2.xlsx"
+        # ─── 1) Locate the Excel file ────────────────────────────────────────
+        # Try the new reference workbook first; fall back to the legacy name
+        # so existing deployments keep working without renaming files.
+        excel_path = EXCEL_PATH if os.path.exists(EXCEL_PATH) else EXCEL_PATH_LEGACY
         if not os.path.exists(excel_path):
-            st.error(f"Excel file not found: {excel_path}")
-            return None, None
-        
-        # Load VA data
-        df_va = pd.read_excel(excel_path, sheet_name='ILM_Connector', header=3, skiprows=[4])
+            st.error(f"Excel file not found. Looked for: {EXCEL_PATH} and {EXCEL_PATH_LEGACY}")
+            return None, None, None, None, None, None
+
+        # ─── 2) Decide which sheet names to use depending on the workbook ────
+        # The new workbook uses descriptive sheet names; the legacy one used
+        # the Google Sheets export tab names.
+        xl = pd.ExcelFile(excel_path)
+        va_sheet = VA_SHEET_NAME if VA_SHEET_NAME in xl.sheet_names else VA_SHEET_LEGACY
+        ta_sheet = TA_SHEET_NAME if TA_SHEET_NAME in xl.sheet_names else TA_SHEET_LEGACY
+
+        # ─── 3) Read VA sheet WITHOUT a header so we can grab rows 1–4 ──────
+        # We need the raw rows to build the 4-row MultiIndex for the Data tab.
+        raw_va_full = pd.read_excel(excel_path, sheet_name=va_sheet, header=None)
+        # Coerce every cell of the first four rows to string for header display
+        va_header4 = [
+            ["" if pd.isna(v) else str(v) for v in raw_va_full.iloc[i].tolist()]
+            for i in range(4)
+        ]
+
+        # Build a "raw" VA DataFrame whose columns are the EXACT Excel names
+        # from row 4. This is what the Data tab will display (with multi-header).
+        va_raw = raw_va_full.iloc[4:].copy()                          # data starts at row 5
+        va_raw.columns = raw_va_full.iloc[3]                          # row 4 → column names
+        va_raw = va_raw.reset_index(drop=True)
+
+        # ─── 4) Load VA sheet WITH header=3 for the cleaned internal frame ──
+        # The data starts at index 4 (row 5). No skiprows is needed for the
+        # new workbook — the previous skiprows=[4] would have dropped the
+        # first real data row.
+        df_va = pd.read_excel(excel_path, sheet_name=va_sheet, header=3)
         
         # Clean up column names for VA
         va_col_mapping = {
@@ -535,8 +674,27 @@ def load_excel_data():
             if col in df_va.columns:
                 df_va[col] = df_va[col].apply(clean_implementation_value)
         
-        # Load TA data
-        df_ta = pd.read_excel(excel_path, sheet_name='ILM_Connector_TA', header=3, skiprows=[4])
+        # ─── 5) Read TA sheet — repeat the same approach ─────────────────────
+        # TA structure differs slightly: row 1 is a description, row 2 is the
+        # table title, row 3 is the group bands, row 4 holds the real column
+        # names, row 5 is sub-descriptions, and data starts at row 6.  We
+        # still keep the "first four lines" for the multi-header display
+        # because that is what the user asked for.
+        raw_ta_full = pd.read_excel(excel_path, sheet_name=ta_sheet, header=None)
+        ta_header4 = [
+            ["" if pd.isna(v) else str(v) for v in raw_ta_full.iloc[i].tolist()]
+            for i in range(4)
+        ]
+
+        # Raw TA frame with original Excel column names (row 4) — used by the
+        # Data tab. Note: for TA the actual data rows start at index 5 (row 6)
+        # because row 5 contains the sub-descriptions ("Provide the given …").
+        ta_raw = raw_ta_full.iloc[5:].copy()
+        ta_raw.columns = raw_ta_full.iloc[3]
+        ta_raw = ta_raw.reset_index(drop=True)
+
+        # Cleaned, internal TA frame with column renaming for analytics.
+        df_ta = pd.read_excel(excel_path, sheet_name=ta_sheet, header=3, skiprows=[4])
         
         ta_col_mapping = {
             'Installation ID': 'installation_id',
@@ -575,13 +733,15 @@ def load_excel_data():
             df_ta['call'] = df_ta['project_id'].apply(lambda x: extract_call(x) if pd.notna(x) else None)
             df_ta['application_number'] = df_ta['project_id'].apply(lambda x: extract_app_number(x) if pd.notna(x) else None)
         
-        return df_va, df_ta
+        # Return six items: cleaned VA, cleaned TA, raw 4-row VA header,
+        # raw 4-row TA header, original-name VA frame, original-name TA frame.
+        return df_va, df_ta, va_header4, ta_header4, va_raw, ta_raw
         
     except Exception as e:
         st.error(f"Error loading Excel data: {str(e)}")
         import traceback
         st.error(traceback.format_exc())
-        return None, None
+        return None, None, None, None, None, None
 
 
 # -------------------------------------------------------------------------
@@ -614,27 +774,43 @@ def load_google_sheets_data():
     """Load data from Google Sheets - PRIMARY DATA SOURCE"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        
-        # Try Streamlit Cloud secrets first, then fall back to local JSON file
+
+        # ─── Authentication ───────────────────────────────────────────────────
+        # Two ways to authenticate, tried in this order:
+        #   1. Streamlit Cloud secrets (`st.secrets["gcp_service_account"]`)
+        #   2. Local service-account JSON file next to this script
+        #
+        # On a developer laptop with no `.streamlit/secrets.toml`, simply
+        # touching `st.secrets` raises StreamlitSecretNotFoundError. We catch
+        # that quietly and treat it as "no secrets defined" — NOT as a fatal
+        # error — so the local JSON path can take over without any red error
+        # box on screen.
         try:
-            if "gcp_service_account" in st.secrets:
-                # Running on Streamlit Cloud - use secrets
-                import json
+            secrets_has_gcp = ("gcp_service_account" in st.secrets)
+        except Exception:
+            # No secrets.toml at all → treat as "no Cloud secrets defined"
+            secrets_has_gcp = False
+
+        try:
+            if secrets_has_gcp:
+                # Streamlit Cloud path: build credentials from the secrets block.
                 creds_dict = dict(st.secrets["gcp_service_account"])
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
                 client = gspread.authorize(creds)
             else:
-                # Running locally - use JSON file
-                json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
+                # Local-development path: use the JSON keyfile on disk.
+                json_keyfile_path = GOOGLE_CREDS_FILE
                 if not os.path.exists(json_keyfile_path):
-                    st.error(f"Credentials file not found: {json_keyfile_path}")
-                    st.info("Place your Google service account JSON file in the same directory as this app")
-                    return None, None, "Credentials file missing"
+                    # Neither secrets nor JSON → fail quietly; the caller will
+                    # fall back to the Excel workbook. No st.error here so the
+                    # UI stays clean.
+                    return None, None, None, None, None, None, "Credentials file missing"
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
                 client = gspread.authorize(creds)
         except Exception as e:
-            st.error(f"❌ Authentication error: {str(e)}")
-            return None, None, f"Auth error: {str(e)}"
+            # Auth itself failed (bad key, network issue, etc.). Return the
+            # message so the caller can decide whether to show it.
+            return None, None, None, None, None, None, f"Auth error: {str(e)}"
         
         # Use the correct spreadsheet URL
         sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=2069740867#gid=2069740867"
@@ -648,8 +824,19 @@ def load_google_sheets_data():
             if len(data_va) < 4:
                 st.warning("⚠️ Virtual Access worksheet has insufficient data")
                 df_va = pd.DataFrame()
+                va_header4 = None
+                va_raw = pd.DataFrame()
             else:
-                df_va = pd.DataFrame(data_va[4:], columns=data_va[3])
+                # ─── Capture the four-line header BEFORE we reduce to columns ──
+                # data_va[0..3] are rows 1..4 of the sheet — exactly what the
+                # user wants displayed as a 4-row MultiIndex in the Data tab.
+                va_header4 = [list(data_va[i]) for i in range(4)]
+
+                # Build TWO frames from the Google Sheets payload:
+                #   * df_va  — column names from row 4, will be renamed for analytics
+                #   * va_raw — same column names, kept verbatim for the Data tab
+                df_va  = pd.DataFrame(data_va[4:], columns=data_va[3])
+                va_raw = df_va.copy()
                 
                 # CRITICAL: Map exact column names from Google Sheets (with newlines and brackets!)
                 va_col_mapping = {
@@ -749,12 +936,12 @@ def load_google_sheets_data():
         except gspread.exceptions.WorksheetNotFound:
             st.error("❌ Worksheet 'ILM_Connector' not found!")
             st.info(f"🔍 Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
-            return None, None, "VA worksheet not found"
+            return None, None, None, None, None, None, "VA worksheet not found"
         except Exception as e:
             import traceback
             st.error(f"❌ Error loading VA data: {str(e)}")
             st.code(traceback.format_exc())
-            return None, None, f"VA data error: {str(e)}"
+            return None, None, None, None, None, None, f"VA data error: {str(e)}"
         
         # Load Transnational Access data
         try:
@@ -762,8 +949,15 @@ def load_google_sheets_data():
             data_ta = worksheet_ta.get_all_values()
             if len(data_ta) < 4:
                 df_ta = pd.DataFrame()
+                ta_header4 = None
+                ta_raw = pd.DataFrame()
             else:
-                df_ta = pd.DataFrame(data_ta[4:], columns=data_ta[3])
+                # Same trick as for VA: keep the first four rows for the Data
+                # tab's MultiIndex header, then build a cleaned-up frame for
+                # analytics by renaming columns to short internal names.
+                ta_header4 = [list(data_ta[i]) for i in range(4)]
+                df_ta  = pd.DataFrame(data_ta[4:], columns=data_ta[3])
+                ta_raw = df_ta.copy()
                 
                 # Map TA column names (these have newlines too!)
                 ta_col_mapping = {
@@ -805,43 +999,73 @@ def load_google_sheets_data():
         except gspread.exceptions.WorksheetNotFound:
             st.warning("⚠️ Worksheet 'ILM_Connector_TA' not found (optional)")
             df_ta = pd.DataFrame()
+            ta_header4 = None
+            ta_raw = pd.DataFrame()
         except Exception as e:
             st.warning(f"⚠️ Error loading TA data: {str(e)}")
             df_ta = pd.DataFrame()
+            ta_header4 = None
+            ta_raw = pd.DataFrame()
         
-        return df_va, df_ta, None
+        # Tuple shape kept consistent with load_excel_data + a trailing error msg.
+        return df_va, df_ta, va_header4, ta_header4, va_raw, ta_raw, None
         
     except gspread.exceptions.APIError as e:
         error_msg = f"Google Sheets API Error: {str(e)}"
         st.error(f"❌ {error_msg}")
         st.info("💡 Make sure the sheet is shared with your service account email")
-        return None, None, error_msg
+        return None, None, None, None, None, None, error_msg
     except gspread.exceptions.SpreadsheetNotFound:
         error_msg = "Spreadsheet not found or not accessible"
         st.error(f"❌ {error_msg}")
         st.info("💡 Check: 1) Sheet URL is correct, 2) Sheet is shared with service account")
-        return None, None, error_msg
+        return None, None, None, None, None, None, error_msg
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         st.error(f"❌ {error_msg}")
         import traceback
         st.code(traceback.format_exc())
-        return None, None, error_msg
+        return None, None, None, None, None, None, error_msg
 
-# Load data from Google Sheets (PRIMARY SOURCE - REAL-TIME)
-va_df_gs, ta_df_gs, error = load_google_sheets_data()
+# Load data from Google Sheets (PRIMARY SOURCE - REAL-TIME).
+# The loader now returns six payloads + an error message:
+#   va_df_gs       : cleaned VA frame with renamed columns
+#   ta_df_gs       : cleaned TA frame with renamed columns
+#   va_header4_gs  : first four rows of the VA sheet (for the Data tab's MultiIndex)
+#   ta_header4_gs  : first four rows of the TA sheet (for the Data tab's MultiIndex)
+#   va_raw_gs      : VA frame with the original Excel/Sheets column names
+#   ta_raw_gs      : TA frame with the original Excel/Sheets column names
+#   error          : non-None string if loading failed
+(va_df_gs, ta_df_gs,
+ va_header4_gs, ta_header4_gs,
+ va_raw_gs, ta_raw_gs, error) = load_google_sheets_data()
 
 if va_df_gs is not None and not va_df_gs.empty:
-    # SUCCESS: Using Google Sheets (real-time data)
-    va_df, ta_df = va_df_gs, ta_df_gs
+    # SUCCESS: Use the live Google Sheets payload.
+    va_df,       ta_df       = va_df_gs,       ta_df_gs
+    va_header4,  ta_header4  = va_header4_gs,  ta_header4_gs
+    va_raw,      ta_raw      = va_raw_gs,      ta_raw_gs
     data_source = "Google Sheets ✅ (Real-time)"
 else:
-    # FALLBACK: Try Excel file as backup
-    st.warning("⚠️ Google Sheets not available - trying Excel backup...")
-    if error:
-        st.error(f"Error details: {error}")
-    va_df, ta_df = load_excel_data()
+    # FALLBACK: Read from the local Excel workbook. We attempt the Excel
+    # load FIRST and only emit a warning if BOTH sources fail — that keeps
+    # the UI clean in normal local-dev runs where Google Sheets isn't
+    # configured but the Excel backup is right there.
+    (va_df, ta_df,
+     va_header4, ta_header4,
+     va_raw, ta_raw) = load_excel_data()
     data_source = "Excel File (Backup)"
+
+    if va_df is not None and not va_df.empty:
+        # Excel rescued us — show a single, low-key info line instead of the
+        # scary red "Authentication error" wall that earlier versions
+        # produced. The actual auth error (if any) is still available in
+        # the `error` variable for debugging.
+        st.info(
+            f"ℹ️ Running on the Excel backup (`{EXCEL_PATH}`). "
+            f"Live Google Sheets data is unavailable — this is normal when "
+            f"no credentials are configured locally."
+        )
     
     if va_df is None or va_df.empty:
         st.error("❌ No data available! Please check:")
@@ -852,7 +1076,8 @@ else:
            - Worksheet names: `ILM_Connector` and `ILM_Connector_TA`
         
         2. **Or Excel Backup:**
-           - Place `ILM_Python_2.xlsx` in same folder
+           - Place `GeoINQUIRE-ImplementationLevelMatrix.xlsx` (or the legacy
+             `ILM_Python_2.xlsx`) in the same folder
            
         3. **Test Connection:**
            - Run: `python test_google_sheets.py`
@@ -933,7 +1158,162 @@ def compute_va_statistics(df):
     return stats
 
 # ===============================================================================================
-# COLUMN SOURCE MAPPING - Maps internal column names to original ILM table column names
+# HELPER — Build a 4-row MultiIndex header from the first four rows of the source sheet
+# ===============================================================================================
+# The user asked that the Data tab show the same header as in the Excel file:
+# the first four rows form a hierarchical header (group band → topic → criteria → name).
+# pandas already supports MultiIndex columns natively in st.dataframe, so we wrap
+# the four raw rows into a MultiIndex and assign it as the frame's columns.
+# ===============================================================================================
+def build_four_row_header(header_rows, ncols):
+    """
+    Build a 4-level pandas.MultiIndex from rows 1–4 of the source sheet.
+
+    Parameters
+    ----------
+    header_rows : list[list]   Four lists of equal length (rows 1, 2, 3, 4).
+    ncols       : int          Number of columns the resulting MultiIndex must have.
+
+    Returns
+    -------
+    pandas.MultiIndex with levels named (Group, Topic, Criteria, Column).
+
+    Notes
+    -----
+    * Empty cells (NaN / None / "") in rows 1–3 are forward-filled along the
+      row so a merged group band like "Implementation Level 1" propagates to
+      the columns it spans in the Excel sheet.  Row 4 (the real column names)
+      is NEVER forward-filled — every column keeps its own name.
+    * If rows are shorter than ``ncols`` (can happen when the sheet has
+      trailing empty columns) they are right-padded with empty strings.
+    """
+    levels = []
+    last_seen = ["", "", "", ""]                         # Forward-fill memory per level
+    # Pad / truncate each row to ncols so they all have the same width
+    padded = []
+    for r in header_rows:
+        row = [("" if (v is None or (isinstance(v, float) and pd.isna(v))) else str(v).strip())
+               for v in r]
+        if len(row) < ncols:
+            row = row + [""] * (ncols - len(row))
+        else:
+            row = row[:ncols]
+        padded.append(row)
+
+    # Forward-fill rows 1–3 (indices 0–2); leave row 4 (index 3) untouched.
+    for level_idx in range(4):
+        new_row = []
+        for col_idx in range(ncols):
+            val = padded[level_idx][col_idx]
+            if level_idx < 3:
+                # Forward-fill across this row for the group/topic/criteria bands
+                if val == "":
+                    val = last_seen[level_idx]
+                else:
+                    last_seen[level_idx] = val
+            new_row.append(val if val != "" else " ")     # MultiIndex dislikes empty strings
+        levels.append(new_row)
+
+    # Build the MultiIndex; the tuple order must match the row order.
+    tuples = list(zip(*levels))
+    return pd.MultiIndex.from_tuples(
+        tuples,
+        names=["Group", "Topic", "Criteria", "Column"]
+    )
+
+
+# ===============================================================================================
+# HELPER — Render a figure inside four year tabs (2023, 2024, 2025, 2026)
+# ===============================================================================================
+# The user asked that every figure in the VA Dashboard and in the Analytics
+# section be wrapped in four year tabs so they can later append year-specific
+# figures.  This helper centralises the pattern so each chart only needs one
+# call instead of duplicating tab boilerplate everywhere.
+#
+# Each tab contains:
+#   * an `st.info(...)` banner explaining the tab is a placeholder.
+#   * a clearly-marked comment block ("APPEND YEAR-XXXX FIGURE HERE") that the
+#     user can locate quickly when pasting their own per-year figure later.
+#   * the all-years figure rendered as a starting point so the dashboard
+#     never looks empty.
+#   * a single download button under the latest year tab (2026) to avoid
+#     duplicating identical buttons on every tab.
+# ===============================================================================================
+def render_in_year_tabs(fig, figure_key, source_cols=None, access_type="VA",
+                        download_label_base=None, figure_title=""):
+    """
+    Render ``fig`` inside four tabs labelled by ``YEAR_TABS``.
+
+    Parameters
+    ----------
+    fig                 : plotly.graph_objects.Figure or matplotlib Figure
+        The all-years figure to show as a placeholder inside each tab.
+    figure_key          : str
+        Stable identifier used for Streamlit widget keys (must be unique
+        across the page).  Year and tab suffixes are appended automatically.
+    source_cols         : list[str] | None
+        Internal column keys for ``add_source_annotation`` (optional).
+    access_type         : "VA" or "TA"
+        Selects which source-column mapping is used in the annotation.
+    download_label_base : str | None
+        Filename base for the PNG download button.  If None no button is
+        rendered.
+    figure_title        : str
+        Human-readable figure title used inside the placeholder banner.
+    """
+    if fig is None:
+        st.info(f"⚠️ No data available for: {figure_title or figure_key}")
+        return
+
+    # Create the four year tabs in the order defined by YEAR_TABS.
+    year_tab_labels = [f"📅 {y}" for y in YEAR_TABS]
+    tabs = st.tabs(year_tab_labels)
+
+    for tab, year in zip(tabs, YEAR_TABS):
+        with tab:
+            # ╔══════════════════════════════════════════════════════════════╗
+            # ║  >>> APPEND YEAR-{year} FIGURE FOR THIS CHART BELOW <<<      ║
+            # ║                                                              ║
+            # ║  This tab currently shows the all-years figure as a place-   ║
+            # ║  holder.  Replace the `st.plotly_chart` / `st.pyplot` call   ║
+            # ║  below with the chart built from data filtered to year       ║
+            # ║  == {year} once it becomes available.                        ║
+            # ╚══════════════════════════════════════════════════════════════╝
+            st.info(
+                f"📅 **{year} view of '{figure_title or figure_key}'** — placeholder. "
+                f"Replace the chart below with a {year}-specific figure when ready."
+            )
+
+            # Render the placeholder figure.  We branch on figure type because
+            # the heatmap is a matplotlib Figure while everything else is
+            # Plotly.  Streamlit handles both via different functions.
+            if isinstance(fig, plt.Figure):
+                st.pyplot(fig, clear_figure=False, use_container_width=False)
+            else:
+                st.plotly_chart(
+                    fig,
+                    use_container_width=False,
+                    key=f"{figure_key}_{year}"
+                )
+
+            # Show the source-column annotation only once per tab.
+            if source_cols:
+                add_source_annotation(source_cols, access_type=access_type)
+
+            # Render a single download button under the most recent year tab
+            # to avoid cluttering every tab with identical buttons.
+            if download_label_base and year == YEAR_TABS[-1]:
+                create_download_button(
+                    fig,
+                    f"{download_label_base}_{year}",
+                    col_keys=source_cols,
+                    access_type=access_type,
+                )
+
+
+
+# ===============================================================================================
+# COLUMN SOURCE MAPPING — Maps internal column names to original ILM table column names
 # ===============================================================================================
 # This mapping allows each figure to display which original column(s) from the ILM table
 # were used, so readers can backtrack to the source data.
@@ -1097,10 +1477,18 @@ def create_enhanced_heatmap(df):
     
     for i, ri in enumerate(ris):
         for j, dr in enumerate(drs):
-            # Count services for this RI and data representation
+            # Count services for this RI and data representation.
             mask = (df['compliant_ri'] == ri)
             if 'data_repr' in df.columns:
-                mask = mask & (df['data_repr'].astype(str).str.contains(dr, na=False, case=False))
+                # `dr` may contain regex-special characters (e.g. "time-series",
+                # "georeferenced/non-georeferenced"). Pass `regex=False` to treat
+                # the needle as a literal substring — this also silences the
+                # "pattern is interpreted as a regular expression, and has match
+                # groups" UserWarning that pandas emits for parenthesised values.
+                mask = mask & (
+                    df['data_repr'].astype(str)
+                                   .str.contains(dr, na=False, case=False, regex=False)
+                )
             
             total_count = mask.sum()
             total_matrix[i, j] = total_count
@@ -1342,11 +1730,16 @@ if selected == "Dashboard":
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                # ── FIGURE 1: Research Infrastructures (RI) ─────────────────────
+                # Builds a bar chart of the number of services per RI.
+                # The figure is then rendered inside four year tabs (2023–2026)
+                # via `render_in_year_tabs`, with placeholder banners so the
+                # user can replace each tab's content with year-specific data.
                 if 'compliant_ri' in va_df.columns:
                     ri_counts = va_df['compliant_ri'].value_counts().to_dict()
                     ri_data = pd.DataFrame(list(ri_counts.items()), columns=['RI', 'Count']).sort_values('Count', ascending=False)
                     
-                    # Create professional bar chart for RI
+                    # Build the all-years bar chart for RI distribution.
                     fig_ri = go.Figure()
                     fig_ri.add_trace(go.Bar(
                         x=ri_data['RI'],
@@ -1374,12 +1767,23 @@ if selected == "Dashboard":
                         font=dict(family=FONT_FAMILY)
                     )
                     
-                    st.plotly_chart(fig_ri, use_container_width=False)
-                    create_download_button(fig_ri, "ri_distribution", col_keys=["compliant_ri"], access_type="VA")
+                    # Render inside the four year tabs (2023, 2024, 2025, 2026).
+                    render_in_year_tabs(
+                        fig_ri,
+                        figure_key="ri_distribution",
+                        source_cols=["compliant_ri"],
+                        access_type="VA",
+                        download_label_base="ri_distribution",
+                        figure_title="1. Research Infrastructures (RI)",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                # ── FIGURE 2: Implementation Status to RI ───────────────────────
+                # Donut chart of services by implementation status. The chart is
+                # rendered inside four year tabs (2023–2026) so per-year figures
+                # can be appended later.
                 if 'implementation_status' in va_df.columns:
                     impl_counts = va_df['implementation_status'].apply(standardize_implementation_value).value_counts().to_dict()
                     impl_data = pd.DataFrame(list(impl_counts.items()), columns=['Status', 'Count']).sort_values('Count', ascending=False)
@@ -1424,8 +1828,14 @@ if selected == "Dashboard":
                         margin=dict(l=40, r=40, t=80, b=100)
                     )
                     
-                    st.plotly_chart(fig_impl, use_container_width=False)
-                    create_download_button(fig_impl, "implementation_status", col_keys=["implementation_status"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_impl,
+                        figure_key="implementation_status",
+                        source_cols=["implementation_status"],
+                        access_type="VA",
+                        download_label_base="implementation_status",
+                        figure_title="2. Implementation Status to RI",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1485,8 +1895,14 @@ if selected == "Dashboard":
                         font=dict(family=FONT_FAMILY)
                     )
                     
-                    st.plotly_chart(fig_repr, use_container_width=False)
-                    create_download_button(fig_repr, "data_representations", col_keys=["data_repr"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_repr,
+                        figure_key="data_representations",
+                        source_cols=["data_repr"],
+                        access_type="VA",
+                        download_label_base="data_representations",
+                        figure_title="3. Data Representations",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1549,8 +1965,14 @@ if selected == "Dashboard":
                         margin=dict(l=40, r=40, t=80, b=110)
                     )
                     
-                    st.plotly_chart(fig_license, use_container_width=False)
-                    create_download_button(fig_license, "license_distribution", col_keys=["license"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_license,
+                        figure_key="va_license_distribution",
+                        source_cols=["license"],
+                        access_type="VA",
+                        download_label_base="license_distribution",
+                        figure_title="4. License Distribution",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1588,37 +2010,71 @@ if selected == "Dashboard":
                     font=dict(family=FONT_FAMILY)
                 )
                 
-                st.plotly_chart(fig_metadata, use_container_width=False)
-                create_download_button(fig_metadata, "metadata_standards", col_keys=["metadata_standard"], access_type="VA")
+                render_in_year_tabs(
+                    fig_metadata,
+                    figure_key="va_metadata_standards_dashboard",
+                    source_cols=["metadata_standard"],
+                    access_type="VA",
+                    download_label_base="metadata_standards",
+                    figure_title="5. Standards of Metadata Describing the Service",
+                )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("---")
 
             # Implementation Matrix Heatmap (full width)
+            # ── This is figure "6" in the VA Dashboard: a matplotlib heatmap
+            #    showing the count of services per (RI × Data Representation).
+            #    We wrap it inside the four year tabs (2023–2026) just like the
+            #    other Dashboard figures so the user can append year-specific
+            #    heatmaps later.
             st.markdown("## 📊 Implementation Matrix Analysis")
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             
             if va_df is not None and not va_df.empty:
                 try:
+                    # Build the all-years heatmap once and reuse it across tabs.
                     fig_heatmap = create_enhanced_heatmap(va_df)
                     if fig_heatmap:
-                        st.pyplot(fig_heatmap, clear_figure=True, use_container_width=False)
-                        
-                        # Offer download
-                        buf = io.BytesIO()
-                        fig_heatmap.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-                        buf.seek(0)
-                        
-                        st.download_button(
-                            label="📥 Download Implementation Matrix (High-Res PNG)",
-                            data=buf,
-                            file_name="implementation_matrix_heatmap.png",
-                            mime="image/png",
-                            key="heatmap_download"
-                        )
-                        
-                        add_source_annotation(["compliant_ri", "implementation_status", "data_repr"], access_type="VA")
-                        st.caption("**Legend:** Large numbers in center = Total services | Green boxes with ✓ = Implemented services")
+                        # Create the year tabs manually (matplotlib needs special
+                        # download-button handling, so we don't go through the
+                        # render_in_year_tabs helper here).
+                        year_tab_labels = [f"📅 {y}" for y in YEAR_TABS]
+                        _heatmap_tabs = st.tabs(year_tab_labels)
+                        for _tab, _yr in zip(_heatmap_tabs, YEAR_TABS):
+                            with _tab:
+                                # ╔══════════════════════════════════════════════════════╗
+                                # ║  >>> APPEND YEAR-{_yr} HEATMAP BELOW THIS LINE <<<   ║
+                                # ║  Replace the call below with a year-specific build   ║
+                                # ║  once year-filtered data is available.                ║
+                                # ╚══════════════════════════════════════════════════════╝
+                                st.info(
+                                    f"📅 **{_yr} view of Implementation Matrix** — placeholder. "
+                                    f"Replace the chart below with a {_yr}-specific heatmap when ready."
+                                )
+                                st.pyplot(fig_heatmap, clear_figure=False, use_container_width=False)
+                                
+                                # Render the download button only on the most recent
+                                # year tab to avoid duplicate buttons / key clashes.
+                                if _yr == YEAR_TABS[-1]:
+                                    buf = io.BytesIO()
+                                    fig_heatmap.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                                    buf.seek(0)
+                                    st.download_button(
+                                        label="📥 Download Implementation Matrix (High-Res PNG)",
+                                        data=buf,
+                                        file_name=f"implementation_matrix_heatmap_{_yr}.png",
+                                        mime="image/png",
+                                        key=f"heatmap_download_{_yr}",
+                                    )
+                                    add_source_annotation(
+                                        ["compliant_ri", "implementation_status", "data_repr"],
+                                        access_type="VA",
+                                    )
+                                    st.caption(
+                                        "**Legend:** Large numbers in center = Total services | "
+                                        "Green boxes with ✓ = Implemented services"
+                                    )
                     else:
                         st.info("Heatmap data not available")
                 except Exception as e:
@@ -1664,9 +2120,14 @@ if selected == "Dashboard":
                     fig_stage = create_professional_donut_chart(stage_data, 'Stage', 'Count',
                                                                'Project Stage Distribution',
                                                                color_map=stage_color_map)
-                    st.plotly_chart(fig_stage, use_container_width=True)
-                    create_download_button(fig_stage, "project_stages", col_keys=["project_stage"], access_type="TA")
-            
+                    render_in_year_tabs(
+                        fig_stage,
+                        figure_key="project_stages",
+                        source_cols=["project_stage"],
+                        access_type="TA",
+                        download_label_base="project_stages",
+                        figure_title="Project Stages",
+                    )
             with col2:
                 if 'call' in ta_df.columns:
                     call_counts = ta_df['call'].value_counts().to_dict()
@@ -1675,8 +2136,14 @@ if selected == "Dashboard":
                                                               'Applications by Call',
                                                               orientation='v',
                                                               color_palette=COLORS['blue_palette'])
-                    st.plotly_chart(fig_calls, use_container_width=True)
-                    create_download_button(fig_calls, "applications_by_call", col_keys=["call"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_calls,
+                        figure_key="applications_by_call",
+                        source_cols=["call"],
+                        access_type="TA",
+                        download_label_base="applications_by_call",
+                        figure_title="Applications By Call",
+                    )
         else:
             st.warning("No Transnational Access data available")
 
@@ -1702,10 +2169,14 @@ elif selected == "Analytics":
                     fig_running = create_professional_donut_chart(running_data, 'Status', 'Count',
                                                                  'Service Running Status',
                                                                  color_map=color_map)
-                    st.plotly_chart(fig_running, use_container_width=False)
-                    create_download_button(fig_running, "service_running", col_keys=["service_running"], access_type="VA")
-                
-            
+                    render_in_year_tabs(
+                        fig_running,
+                        figure_key="service_running",
+                        source_cols=["service_running"],
+                        access_type="VA",
+                        download_label_base="service_running",
+                        figure_title="Service Running",
+                    )
             st.markdown("---")
             
             
@@ -1718,8 +2189,14 @@ elif selected == "Analytics":
                                                            'API Standards Distribution',
                                                            orientation='v',
                                                            color_palette=COLORS['blue_palette'])
-                    st.plotly_chart(fig_api, use_container_width=False)
-                    create_download_button(fig_api, "api_standards", col_keys=["api_standard"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_api,
+                        figure_key="api_standards",
+                        source_cols=["api_standard"],
+                        access_type="VA",
+                        download_label_base="api_standards",
+                        figure_title="Api Standards",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1729,8 +2206,14 @@ elif selected == "Analytics":
                     meta_data = pd.DataFrame(list(meta_counts.items()), columns=['Standard', 'Count']).sort_values('Count', ascending=False)
                     fig_meta = create_professional_pie_chart(meta_data, 'Standard', 'Count',
                                                             'Metadata Standards')
-                    st.plotly_chart(fig_meta, use_container_width=False)
-                    create_download_button(fig_meta, "metadata_standards", col_keys=["metadata_standard"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_meta,
+                        figure_key="metadata_standards",
+                        source_cols=["metadata_standard"],
+                        access_type="VA",
+                        download_label_base="metadata_standards",
+                        figure_title="Metadata Standards",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1747,8 +2230,14 @@ elif selected == "Analytics":
                     fig_param = create_professional_donut_chart(param_data, 'Status', 'Count',
                                                                'Service Parametrization',
                                                                color_map=color_map)
-                    st.plotly_chart(fig_param, use_container_width=False)
-                    create_download_button(fig_param, "parametrization", col_keys=["parametrization"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_param,
+                        figure_key="parametrization",
+                        source_cols=["parametrization"],
+                        access_type="VA",
+                        download_label_base="parametrization",
+                        figure_title="Parametrization",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1758,8 +2247,14 @@ elif selected == "Analytics":
                     license_data = pd.DataFrame(list(license_counts.items()), columns=['License', 'Count']).sort_values('Count', ascending=False)
                     fig_license = create_professional_pie_chart(license_data, 'License', 'Count',
                                                                 'License Distribution')
-                    st.plotly_chart(fig_license, use_container_width=False)
-                    create_download_button(fig_license, "license_types", col_keys=["license"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_license,
+                        figure_key="license_types",
+                        source_cols=["license"],
+                        access_type="VA",
+                        download_label_base="license_types",
+                        figure_title="License Types",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1770,8 +2265,14 @@ elif selected == "Analytics":
                     fig_desc = create_professional_donut_chart(desc_data, 'Status', 'Count',
                                                               'Full Description Status',
                                                               color_map=color_map)
-                    st.plotly_chart(fig_desc, use_container_width=False)
-                    create_download_button(fig_desc, "fully_described", col_keys=["fully_described"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_desc,
+                        figure_key="fully_described",
+                        source_cols=["fully_described"],
+                        access_type="VA",
+                        download_label_base="fully_described",
+                        figure_title="Fully Described",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1795,8 +2296,14 @@ elif selected == "Analytics":
                                                            'Documentation Status',
                                                            orientation='v',
                                                            color_palette=[color_map.get(s, COLORS['info']) for s in doc_data['Status']])
-                    st.plotly_chart(fig_doc, use_container_width=False)
-                    create_download_button(fig_doc, "documentation", col_keys=["documentation_status"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_doc,
+                        figure_key="documentation",
+                        source_cols=["documentation_status"],
+                        access_type="VA",
+                        download_label_base="documentation",
+                        figure_title="Documentation",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1807,8 +2314,14 @@ elif selected == "Analytics":
                     fig_payload = create_professional_donut_chart(payload_data, 'Status', 'Count',
                                                                  'Payload Support',
                                                                  color_map=color_map)
-                    st.plotly_chart(fig_payload, use_container_width=False)
-                    create_download_button(fig_payload, "payloads", col_keys=["payloads"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_payload,
+                        figure_key="payloads",
+                        source_cols=["payloads"],
+                        access_type="VA",
+                        download_label_base="payloads",
+                        figure_title="Payloads",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
@@ -1817,8 +2330,14 @@ elif selected == "Analytics":
                     auth_data = pd.DataFrame(list(va_stats['auth'].items()), columns=['Method', 'Count']).sort_values('Count', ascending=False)
                     fig_auth = create_professional_pie_chart(auth_data, 'Method', 'Count',
                                                             'Authentication Methods')
-                    st.plotly_chart(fig_auth, use_container_width=False)
-                    create_download_button(fig_auth, "authentication", col_keys=["auth_method"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_auth,
+                        figure_key="authentication",
+                        source_cols=["auth_method"],
+                        access_type="VA",
+                        download_label_base="authentication",
+                        figure_title="Authentication",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([1, 1, 1])
@@ -1830,8 +2349,14 @@ elif selected == "Analytics":
                     fig_conv = create_professional_donut_chart(conv_data, 'Status', 'Count',
                                                               'Converter Plugin Availability',
                                                               color_map=color_map)
-                    st.plotly_chart(fig_conv, use_container_width=False)
-                    create_download_button(fig_conv, "converter", col_keys=["converter_plugin"], access_type="VA")
+                    render_in_year_tabs(
+                        fig_conv,
+                        figure_key="converter",
+                        source_cols=["converter_plugin"],
+                        access_type="VA",
+                        download_label_base="converter",
+                        figure_title="Converter",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Virtual Access data available")
@@ -1854,8 +2379,14 @@ elif selected == "Analytics":
                     fig_gender = create_professional_pie_chart(gender_data, 'Gender', 'Count',
                                                               'Principal Investigator Gender Distribution',
                                                               color_map=color_map)
-                    st.plotly_chart(fig_gender, use_container_width=False)
-                    create_download_button(fig_gender, "ta_gender_distribution", col_keys=["pi_gender"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_gender,
+                        figure_key="ta_gender_distribution",
+                        source_cols=["pi_gender"],
+                        access_type="TA",
+                        download_label_base="ta_gender_distribution",
+                        figure_title="Gender Distribution",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1867,8 +2398,14 @@ elif selected == "Analytics":
                                                             'Top 10 TA Host Distribution',
                                                             orientation='h',
                                                             color_palette=COLORS['green_palette'])
-                    st.plotly_chart(fig_host, use_container_width=False)
-                    create_download_button(fig_host, "ta_host_distribution", col_keys=["ta_host"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_host,
+                        figure_key="ta_host_distribution",
+                        source_cols=["ta_host"],
+                        access_type="TA",
+                        download_label_base="ta_host_distribution",
+                        figure_title="Host Distribution",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1883,8 +2420,14 @@ elif selected == "Analytics":
                     unit_data = pd.DataFrame(list(unit_counts.items()), columns=['Unit', 'Count'])
                     fig_unit = create_professional_pie_chart(unit_data, 'Unit', 'Count',
                                                             'Access Unit Types')
-                    st.plotly_chart(fig_unit, use_container_width=False)
-                    create_download_button(fig_unit, "ta_access_units", col_keys=["unit_of_access"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_unit,
+                        figure_key="ta_access_units",
+                        source_cols=["unit_of_access"],
+                        access_type="TA",
+                        download_label_base="ta_access_units",
+                        figure_title="Access Units",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1896,8 +2439,14 @@ elif selected == "Analytics":
                                                              'Number of Users Distribution',
                                                              orientation='v',
                                                              color_palette=['#8E44AD'] * len(user_data))
-                    st.plotly_chart(fig_users, use_container_width=False)
-                    create_download_button(fig_users, "ta_number_of_users", col_keys=["number_of_users"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_users,
+                        figure_key="ta_number_of_users",
+                        source_cols=["number_of_users"],
+                        access_type="TA",
+                        download_label_base="ta_number_of_users",
+                        figure_title="Number Of Users",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1926,8 +2475,14 @@ elif selected == "Analytics":
                         legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
                         margin=dict(l=60, r=60, t=60, b=100)
                     )
-                    st.plotly_chart(fig_call_gender, use_container_width=False)
-                    create_download_button(fig_call_gender, "ta_call_gender", col_keys=["call", "pi_gender"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_call_gender,
+                        figure_key="ta_call_gender",
+                        source_cols=["call", "pi_gender"],
+                        access_type="TA",
+                        download_label_base="ta_call_gender",
+                        figure_title="Call Gender",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1952,8 +2507,14 @@ elif selected == "Analytics":
                         legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, font=dict(size=10)),
                         margin=dict(l=60, r=60, t=60, b=120)
                     )
-                    st.plotly_chart(fig_call_host, use_container_width=False)
-                    create_download_button(fig_call_host, "ta_call_host", col_keys=["call", "ta_host"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_call_host,
+                        figure_key="ta_call_host",
+                        source_cols=["call", "ta_host"],
+                        access_type="TA",
+                        download_label_base="ta_call_host",
+                        figure_title="Call Host",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1999,8 +2560,14 @@ elif selected == "Analytics":
                             paper_bgcolor='white'
                         )
                         
-                        st.plotly_chart(fig_monthly, use_container_width=False)
-                        create_download_button(fig_monthly, "ta_monthly_distribution", col_keys=["visit_start"], access_type="TA")
+                        render_in_year_tabs(
+                            fig_monthly,
+                            figure_key="ta_monthly_distribution",
+                            source_cols=["visit_start"],
+                            access_type="TA",
+                            download_label_base="ta_monthly_distribution",
+                            figure_title="Monthly Distribution",
+                        )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -2039,8 +2606,14 @@ elif selected == "Analytics":
                                 margin=dict(l=60, r=60, t=60, b=80)
                             )
                             
-                            st.plotly_chart(fig_units, use_container_width=False)
-                            create_download_button(fig_units, "ta_units_comparison", col_keys=["units_requested", "units_used"], access_type="TA")
+                            render_in_year_tabs(
+                                fig_units,
+                                figure_key="ta_units_comparison",
+                                source_cols=["units_requested", "units_used"],
+                                access_type="TA",
+                                download_label_base="ta_units_comparison",
+                                figure_title="Units Comparison",
+                            )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -2064,8 +2637,14 @@ elif selected == "Analytics":
                         orientation='h',
                         color_palette=['#F39C12'] * len(affil_data)
                     )
-                    st.plotly_chart(fig_affil, use_container_width=False)
-                    create_download_button(fig_affil, "ta_top_institutions", col_keys=["pi_affiliation"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_affil,
+                        figure_key="ta_top_institutions",
+                        source_cols=["pi_affiliation"],
+                        access_type="TA",
+                        download_label_base="ta_top_institutions",
+                        figure_title="Top Institutions",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -2075,8 +2654,14 @@ elif selected == "Analytics":
                     wp_data = pd.DataFrame(list(wp_counts.items()), columns=['Work Package', 'Count'])
                     fig_wp = create_professional_pie_chart(wp_data, 'Work Package', 'Count',
                                                            'Associated Work Packages')
-                    st.plotly_chart(fig_wp, use_container_width=False)
-                    create_download_button(fig_wp, "ta_work_packages", col_keys=["associated_wp"], access_type="TA")
+                    render_in_year_tabs(
+                        fig_wp,
+                        figure_key="ta_work_packages",
+                        source_cols=["associated_wp"],
+                        access_type="TA",
+                        download_label_base="ta_work_packages",
+                        figure_title="Work Packages",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Transnational Access data available")
@@ -2089,27 +2674,42 @@ elif selected == "KPI":
         # ==================== VIRTUAL ACCESS KPI - FULL IMPLEMENTATION ====================
         st.header("### 📊 Virtual Access KPIs")
         
-        # Load raw data to access KPI columns by index
+        # Load raw data to access KPI columns by index. The KPI section talks
+        # directly to Google Sheets so it can read raw cell values by column
+        # position (avoids the renamings that load_google_sheets_data applies).
         try:
-            # Use Google Sheets via Streamlit secrets (works on cloud) or local JSON
-            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            
-            # Try Streamlit Cloud secrets first, then fall back to local JSON file
-            if "gcp_service_account" in st.secrets:
-                # Running on Streamlit Cloud - use secrets
+            scope = ["https://spreadsheets.google.com/feeds",
+                     "https://www.googleapis.com/auth/drive"]
+
+            # Same dual-path auth as the main loader: try Streamlit Cloud
+            # secrets first, fall back silently to the local JSON. Touching
+            # `st.secrets` when no secrets.toml exists raises, so we wrap the
+            # lookup in its own try/except to keep the page clean.
+            try:
+                secrets_has_gcp = ("gcp_service_account" in st.secrets)
+            except Exception:
+                secrets_has_gcp = False
+
+            if secrets_has_gcp:
                 creds_dict = dict(st.secrets["gcp_service_account"])
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             else:
-                # Running locally - use JSON file
-                json_keyfile_path = "valiant-splicer-409609-e34abed30cc1.json"
+                json_keyfile_path = GOOGLE_CREDS_FILE
                 if not os.path.exists(json_keyfile_path):
-                    st.error("❌ Credentials not found. Cannot load KPI data.")
+                    # Fail quietly — the KPI section can't render without a
+                    # live Google Sheets connection, but we surface a single
+                    # informational message instead of multiple red errors.
+                    st.info(
+                        "ℹ️ KPI charts require a live Google Sheets connection. "
+                        "Add `valiant-splicer-409609-e34abed30cc1.json` locally, "
+                        "or configure `gcp_service_account` in Streamlit Cloud "
+                        "secrets, to see this page."
+                    )
                     raise Exception("Credentials missing")
                 creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
-            
+
             client = gspread.authorize(creds)
-            sheet_url = "https://docs.google.com/spreadsheets/d/1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/edit?gid=2069740867#gid=2069740867"
-            spreadsheet = client.open_by_url(sheet_url)
+            spreadsheet = client.open_by_url(GOOGLE_SHEET_URL)
             worksheet_va = spreadsheet.worksheet("ILM_Connector")
             data_va = worksheet_va.get_all_values()
             df_raw = pd.DataFrame(data_va[4:], columns=data_va[3])
@@ -2413,50 +3013,110 @@ elif selected == "KPI":
 # ===============================================================================================
 # =================================== DATA SECTION ============================================
 # ===============================================================================================
-# This section displays raw data tables for both Virtual Access and Transnational Access
-# Users can view and download the complete datasets as CSV files
+# The Data tab displays the RAW source data for both Virtual Access and Transnational
+# Access using the EXACT same column-header structure as the source Excel file:
+# rows 1–4 of the spreadsheet form a 4-row hierarchical header (group band → topic
+# → criteria → column name).  We build a `pandas.MultiIndex` from these four rows
+# via the `build_four_row_header()` helper defined near the top of this file and
+# attach it to the raw frame (`va_raw` / `ta_raw`).  Users can also download the
+# data as a CSV with the original column names.
 # ===============================================================================================
 
 elif selected == "Data":
+    # Breadcrumb-style header line
     st.markdown("<span class='small'>Home → Data</span>", unsafe_allow_html=True)
     st.header("Data Table")
-    
+
+    # ── A short note explaining the 4-row header to anyone unfamiliar with the
+    #    Excel layout — keeps the table self-documenting. ────────────────────
+    st.caption(
+        "The header below mirrors the first four rows of the source spreadsheet: "
+        "**Group band → Topic → Criteria → Column name**, exactly as in the "
+        "Excel file `GeoINQUIRE-ImplementationLevelMatrix.xlsx`."
+    )
+
+    # ---------------------------------------------------------------------------
+    # VIRTUAL ACCESS BRANCH
+    # ---------------------------------------------------------------------------
     if project_label == "Virtual Access":
-        # Display Virtual Access data table
-        if va_df is not None and not va_df.empty:
-            # Fix any duplicate column names before display
-            va_df_display = va_df.copy()
-            cols = pd.Series(va_df_display.columns)
+        if va_raw is not None and not va_raw.empty:
+            # 1) Work on a copy so the source frame stays untouched between reruns.
+            va_display = va_raw.copy()
+
+            # 2) De-duplicate column names that may repeat in row 4 of the sheet
+            #    (e.g. several "[0;1]" cells). Streamlit's dataframe rendering
+            #    rejects an Index with duplicates, so we suffix the duplicates
+            #    with _1, _2, ... while leaving the first occurrence intact.
+            cols = pd.Series(va_display.columns.astype(str))
             for dup in cols[cols.duplicated()].unique():
                 dup_indices = [i for i, x in enumerate(cols) if x == dup]
                 for i, idx in enumerate(dup_indices[1:], start=1):
                     cols[idx] = f"{dup}_{i}"
-            va_df_display.columns = cols
-            
-            st.caption(f"**Virtual Access Data** - {len(va_df_display)} records")
-            st.dataframe(va_df_display, use_container_width=True)
-            
-            # Provide CSV download button (using cleaned dataframe)
+            va_display.columns = cols
+
+            # 3) Build the 4-row MultiIndex from rows 1–4 (`va_header4` was set
+            #    inside `load_google_sheets_data` / `load_excel_data`).  The
+            #    helper forward-fills the merged group bands so they span the
+            #    correct columns, and it gracefully handles the case where
+            #    the header rows are shorter than the data.
+            if va_header4 is not None and len(va_header4) == 4:
+                try:
+                    multi_idx = build_four_row_header(va_header4, len(va_display.columns))
+                    va_display.columns = multi_idx
+                except Exception as exc:
+                    # Fall back silently to the flat header if anything goes
+                    # wrong — the user still sees the data with single names.
+                    st.caption(f"(Could not build multi-row header: {exc})")
+
+            # 4) Render the dataframe and offer a CSV download.
+            st.caption(f"**Virtual Access Data** — {len(va_display):,} records")
+            st.dataframe(va_display, use_container_width=True)
+
+            # CSV download keeps the row-4 column names (last level of the
+            # MultiIndex), which is what users normally want in a spreadsheet.
             st.download_button(
-                "📥 Download CSV", 
-                data=va_df_display.to_csv(index=False).encode("utf-8"),
-                file_name="VA_data.csv", 
-                mime="text/csv"
+                "📥 Download VA CSV (original column names)",
+                data=va_raw.to_csv(index=False).encode("utf-8"),
+                file_name="VA_data.csv",
+                mime="text/csv",
+                key="va_csv_download",
             )
         else:
             st.warning("No Virtual Access data available")
+
+    # ---------------------------------------------------------------------------
+    # TRANSNATIONAL ACCESS BRANCH
+    # ---------------------------------------------------------------------------
     else:
-        # Display Transnational Access data table
-        if ta_df is not None and not ta_df.empty:
-            st.caption(f"**Transnational Access Data** - {len(ta_df)} records")
-            st.dataframe(ta_df, use_container_width=True)
-            
-            # Provide CSV download button
+        if ta_raw is not None and not ta_raw.empty:
+            # Same pattern as the VA branch but on the TA sheet.
+            ta_display = ta_raw.copy()
+
+            # De-duplicate columns
+            cols = pd.Series(ta_display.columns.astype(str))
+            for dup in cols[cols.duplicated()].unique():
+                dup_indices = [i for i, x in enumerate(cols) if x == dup]
+                for i, idx in enumerate(dup_indices[1:], start=1):
+                    cols[idx] = f"{dup}_{i}"
+            ta_display.columns = cols
+
+            # Build the multi-row header for TA
+            if ta_header4 is not None and len(ta_header4) == 4:
+                try:
+                    multi_idx = build_four_row_header(ta_header4, len(ta_display.columns))
+                    ta_display.columns = multi_idx
+                except Exception as exc:
+                    st.caption(f"(Could not build multi-row header: {exc})")
+
+            st.caption(f"**Transnational Access Data** — {len(ta_display):,} records")
+            st.dataframe(ta_display, use_container_width=True)
+
             st.download_button(
-                "📥 Download CSV", 
-                data=ta_df.to_csv(index=False).encode("utf-8"),
-                file_name="TA_data.csv", 
-                mime="text/csv"
+                "📥 Download TA CSV (original column names)",
+                data=ta_raw.to_csv(index=False).encode("utf-8"),
+                file_name="TA_data.csv",
+                mime="text/csv",
+                key="ta_csv_download",
             )
         else:
             st.warning("No Transnational Access data available")
