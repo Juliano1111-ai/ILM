@@ -9,7 +9,7 @@
 #   * Everything else uses lower bounds only — Streamlit Cloud will resolve to
 #     the latest compatible release at build time.
 # =====================================================================================
- 
+
 streamlit>=1.28,<2
 plotly>=5.0.0
 pandas>=2.0.0
@@ -21,4 +21,3 @@ kaleido==0.2.1
 openpyxl>=3.0.0
 gspread>=5.0.0
 oauth2client>=4.1.0
- 

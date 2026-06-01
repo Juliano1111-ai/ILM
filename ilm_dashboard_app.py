@@ -137,14 +137,34 @@ VA_SHEET_LEGACY     = "ILM_Connector_VA"
 # the tab is named "ILM_Connector_TA" in both places.
 TA_SHEET_LEGACY     = "ILM_Connector_TA"
 
-# --- Year tabs around each figure ----------------------------------------------
-# These are the year tabs that appear under every chart on the VA Dashboard
-# and the Analytics page. Each tab currently shows the all-years figure as
-# a placeholder; replace the placeholder with a year-specific chart inside
-# `render_in_year_tabs` (search the file for ">>> APPEND YEAR-").
-# Add a year (e.g. 2027) by extending the tuple — the rest of the dashboard
-# picks it up automatically.
-YEAR_TABS           = (2023, 2024, 2025, 2026)
+# --- Historical snapshots for the year tabs ------------------------------------
+# Three frozen point-in-time exports of the ILM workbook, one per project year.
+# Each file is treated as a read-only snapshot; the dashboard reads them only to
+# populate the 2023 / 2024 / 2025 tabs of each VA figure.
+HISTORICAL_VA_FILES = {
+    "2023": "ILM_Old/GeoINQUIRE-ImplementationLevelMatrix - 21 December 2023, 11_05.xlsx",
+    "2024": "ILM_Old/GeoINQUIRE-ImplementationLevelMatrix - 5 November 2024, 11_39.xlsx",
+    "2025": "ILM_Old/GeoINQUIRE-ImplementationLevelMatrix - 12 November 2025, 10_47.xlsx",
+}
+
+# Sheet names to try when loading a historical VA workbook (in order).
+HISTORICAL_VA_SHEET_CANDIDATES = (
+    "ILM_VA",                          # 2023 (Dec) & 2025 exports
+    "ILM-VA",                          # 2024 export (note the hyphen)
+    "Implementation_Level_Matrix_VA",  # older 2025 export
+    "Implementation_Level_Matrix",     # older 2023/2024 exports
+)
+
+# Year tab labels: 2023, 2024, 2025 use frozen snapshots; 2026 tab uses live data.
+YEAR_TAB_KEYS   = ("2023", "2024", "2025", "2026")
+YEAR_TAB_LABELS = ("2023", "2024", "2025", "2026  ·  Live")
+
+# --- Call tabs (Transnational Access) ------------------------------------------
+# Per spec, TA charts group projects by funding Call (1–4); each Call is
+# identified by the project_id prefix ("TA1-…", "TA2-…", ...).
+CALL_TAB_KEYS   = ("Call 1", "Call 2", "Call 3", "Call 4")
+CALL_TAB_LABELS = ("Call 1", "Call 2", "Call 3", "Call 4")
+CALL_PREFIXES   = {"Call 1": "TA1", "Call 2": "TA2", "Call 3": "TA3", "Call 4": "TA4"}
 
 # ===============================================================================================
 # STREAMLIT PAGE CONFIGURATION — MUST BE FIRST STREAMLIT COMMAND
@@ -302,44 +322,48 @@ if not check_password():
 # Defines consistent color scheme throughout the dashboard
 # Includes status colors, chart palettes, and theme colors
 # ===============================================================================================
+# Restrained, editorial palette. Names below are reused throughout the dashboard.
 COLORS = {
-    'primary': '#2C3E50',
-    'secondary': '#34495E',
-    'accent': '#3498DB',
-    'success': '#27AE60',
-    'warning': '#F39C12',
-    'danger': '#E74C3C',
-    'info': '#16A085',
-    'light': '#ECF0F1',
-    'dark': '#2C3E50',
-    
-    # Extended palette for charts
-    'blue_palette': ['#3498DB', '#5DADE2', '#85C1E9', '#AED6F1', '#D6EAF8'],
-    'green_palette': ['#27AE60', '#52BE80', '#7DCEA0', '#A9DFBF', '#D5F4E6'],
-    'multi_palette': ['#3498DB', '#E74C3C', '#F39C12', '#9B59B6', '#1ABC9C', '#34495E'],
-    
-    # Status colors
-    'implemented': '#27AE60',
-    'partly_implemented': '#3498DB',
-    'planned': '#F39C12',
-    'not_implemented': '#E74C3C',
-    'yes': '#27AE60',
-    'no': '#E74C3C',
-    'unknown': '#95A5A6',
-    
-    # TA Status colors
-    'exhausted': '#27AE60',
-    'fixed': '#3498DB',
-    'ready': '#1ABC9C',
-    'contacted': '#F39C12',
-    'negotiated': '#9B59B6',
+    'primary'   : '#1f3a5f',
+    'secondary' : '#3b5b7e',
+    'accent'    : '#2563eb',
+    'success'   : '#0e9f6e',
+    'warning'   : '#d97706',
+    'danger'    : '#dc2626',
+    'info'      : '#0891b2',
+    'light'     : '#f1f5f9',
+    'dark'      : '#0f172a',
+
+    # Continuous palettes for ordered categorical charts.
+    'blue_palette'  : ['#1e40af', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
+    'green_palette' : ['#065f46', '#0e9f6e', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'],
+    # Multi-hue palette — high contrast & color-blind friendly (Okabe–Ito).
+    'multi_palette' : ['#2563eb', '#dc2626', '#d97706', '#7c3aed',
+                       '#0891b2', '#0e9f6e', '#475569', '#db2777'],
+
+    'implemented'        : '#0e9f6e',
+    'partly_implemented' : '#2563eb',
+    'planned'            : '#d97706',
+    'not_implemented'    : '#dc2626',
+    'unknown'            : '#94a3b8',
+    'yes' : '#0e9f6e',
+    'no'  : '#dc2626',
+    'exhausted'  : '#0e9f6e',
+    'fixed'      : '#2563eb',
+    'ready'      : '#0891b2',
+    'contacted'  : '#d97706',
+    'negotiated' : '#7c3aed',
 }
 
-# Professional font settings
-FONT_FAMILY = "Arial, sans-serif"
-TITLE_FONT_SIZE = 18
-LABEL_FONT_SIZE = 14
-TICK_FONT_SIZE = 12
+# Modern system-font stack — looks elegant on any OS.
+FONT_FAMILY      = ("Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', "
+                    "Roboto, 'Helvetica Neue', Arial, sans-serif")
+TITLE_FONT_SIZE  = 17
+LABEL_FONT_SIZE  = 13
+TICK_FONT_SIZE   = 12
+
+# Backwards-compatibility shim for older code paths that still reference YEAR_TABS.
+YEAR_TABS = YEAR_TAB_KEYS
 
 # ===============================================================================================
 # CUSTOM CSS STYLING
@@ -348,50 +372,86 @@ TICK_FONT_SIZE = 12
 # ===============================================================================================
 st.markdown("""
 <style>
+/* ============================================================================
+   FORCE LIGHT THEME — belt-and-braces with .streamlit/config.toml.
+   Even if a viewer's browser / OS is in dark mode, these rules keep the
+   dashboard on a clean white canvas with dark text.
+   ============================================================================ */
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stHeader"],
+[data-testid="stSidebar"],
+.main,
+.block-container {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+[data-testid="stSidebar"] {
+    background-color: #f5f7fa !important;
+    border-right: 1px solid #e2e8f0;
+}
+
+/* ── Typography: modern system-font stack ───────────────────────────────── */
+html, body, .stApp, [class*="css"] {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
 .block-container { padding-top: 4.25rem !important; padding-bottom: 1rem; }
-h1, h2, h3 { margin-bottom: .25rem; font-family: Arial, sans-serif; }
-hr { margin: .75rem 0; }
-.kpi { 
-    padding: 1.2rem 1.5rem; 
-    border-radius: 12px; 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+h1, h2, h3 {
+    margin-bottom: .25rem;
+    color: #1f3a5f !important;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+hr { margin: .75rem 0; border-color: #e2e8f0; }
+
+/* ── KPI cards — refined navy gradient that matches the chart palette ───── */
+.kpi {
+    padding: 1.3rem 1.5rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1f3a5f 0%, #2563eb 100%);
     border: none;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 16px rgba(31,58,95,0.18);
     color: white;
 }
-.kpi h3 { 
-    font-size: 0.95rem; 
-    margin: 0 0 .5rem 0; 
-    color: rgba(255,255,255,0.9); 
-    font-weight: 600; 
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.kpi .val { 
-    font-size: 2rem; 
-    font-weight: 700; 
-    color: white;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.small { font-size: 0.85rem; color: #666; }
-[data-testid="stDataFrame"] { border: 1px solid #eee; border-radius: 10px; }
-.download-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    border: none;
+.kpi h3 {
+    font-size: 0.8rem;
+    margin: 0 0 .5rem 0;
+    color: rgba(255,255,255,0.85) !important;
     font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
 }
+.kpi .val {
+    font-size: 2.1rem;
+    font-weight: 800;
+    color: white !important;
+    line-height: 1.1;
+}
+.small { font-size: 0.85rem; color: #64748b; }
+[data-testid="stDataFrame"] { border: 1px solid #e2e8f0; border-radius: 10px; }
+
+/* ── Chart container card ───────────────────────────────────────────────── */
 .chart-container {
     background: white;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px rgba(15,23,42,0.06);
+    border: 1px solid #eef2f6;
     margin-bottom: 1.5rem;
 }
+
+/* ── Tabs — clean, understated, with a navy active underline ────────────── */
+button[data-baseweb="tab"] {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    color: #64748b !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #1f3a5f !important;
+}
+[data-baseweb="tab-highlight"] { background-color: #2563eb !important; }
+
 @media (min-width: 1200px) { .block-container { padding-top: 3.25rem !important; } }
 @media (max-width: 768px) { .block-container { padding-top: 4.75rem !important; } }
 </style>
@@ -414,44 +474,51 @@ with right:
 with st.sidebar:
     # Bold project toggle header
     st.markdown(
-        '<p style="font-size:1.25rem; font-weight:900; color:#1a1a2e; '
+        '<p style="font-size:1.25rem; font-weight:900; color:#1f3a5f; '
         'letter-spacing:1px; margin-bottom:0.5rem; text-transform:uppercase; '
-        'border-bottom:3px solid #3498DB; padding-bottom:0.3rem;">Select Project</p>',
+        'border-bottom:3px solid #2563eb; padding-bottom:0.3rem;">Select Project</p>',
         unsafe_allow_html=True,
     )
 
     # Inject custom CSS to make the radio buttons large, bold & highly visible
     st.markdown("""
     <style>
-    /* ===== BOLD PROJECT TOGGLE BUTTONS ===== */
+    /* ===== PROMINENT PROJECT TOGGLE BUTTONS ===== */
     div[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.5rem !important;
+        gap: 0.65rem !important;
     }
     div[data-testid="stSidebar"] .stRadio > div > label {
-        font-weight: 900 !important;
-        font-size: 1.15rem !important;
-        padding: 0.75rem 1.2rem !important;
-        border: 3px solid #2980B9 !important;
-        border-radius: 10px !important;
+        font-weight: 800 !important;
+        font-size: 1.05rem !important;
+        padding: 0.95rem 1.1rem !important;
+        border: 2px solid #cbd5e1 !important;
+        border-radius: 12px !important;
         cursor: pointer !important;
-        transition: all 0.25s ease !important;
-        background: #F0F8FF !important;
+        transition: all 0.2s ease !important;
+        background: #ffffff !important;
         display: flex !important;
         align-items: center !important;
-        color: #1a1a2e !important;
-        letter-spacing: 0.3px !important;
+        color: #1f3a5f !important;
+        letter-spacing: 0.2px !important;
+        box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
+    }
+    /* Hide the tiny default radio dot — the whole pill is the control */
+    div[data-testid="stSidebar"] .stRadio > div > label > div:first-child {
+        display: none !important;
     }
     div[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: #D6EAF8 !important;
-        border-color: #1a6fb5 !important;
-        transform: translateX(3px);
+        background: #eff6ff !important;
+        border-color: #2563eb !important;
+        transform: translateX(2px);
+        box-shadow: 0 3px 8px rgba(37,99,235,0.15) !important;
     }
     div[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],
     div[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
-        background: linear-gradient(135deg, #2980B9 0%, #1a5276 100%) !important;
-        color: white !important;
-        border-color: #1a5276 !important;
-        box-shadow: 0 4px 12px rgba(41,128,185,0.45) !important;
+        background: linear-gradient(135deg, #1f3a5f 0%, #2563eb 100%) !important;
+        color: #ffffff !important;
+        border-color: #1f3a5f !important;
+        box-shadow: 0 6px 16px rgba(31,58,95,0.35) !important;
+        transform: translateX(2px);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -472,34 +539,37 @@ with st.sidebar:
     # ---- Geo-INQUIRE Project Metadata ----
     st.markdown("---")
     st.markdown(
-        '<p style="font-size:1.05rem; font-weight:800; color:#1a1a2e; '
-        'letter-spacing:0.5px; margin-bottom:0.3rem;">About Geo-INQUIRE</p>',
+        '<p style="font-size:1.05rem; font-weight:800; color:#1f3a5f; '
+        'letter-spacing:0.3px; margin-bottom:0.3rem;">About Geo-INQUIRE</p>',
         unsafe_allow_html=True,
     )
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#f8f9fa 0%,#e8f4fd 100%);
-                padding:1rem; border-radius:10px; border-left:4px solid #2980B9;
-                font-size:0.82rem; color:#333; line-height:1.5; margin-bottom:0.8rem;">
+    <div style="background:#ffffff; padding:1rem; border-radius:12px;
+                border:1px solid #e2e8f0; border-left:4px solid #2563eb;
+                font-size:0.82rem; color:#334155; line-height:1.55; margin-bottom:0.8rem;">
         <strong>Geosphere INfrastructures for QUestions into Integrated REsearch</strong><br><br>
-        Geo-INQUIRE is a <strong>Horizon Europe</strong> project enhancing access to
-        key geoscience data, products and services to monitor and model
-        geosphere dynamics at new levels of detail and precision.<br><br>
-        <strong>Key Facts:</strong><br>
+        A <strong>Horizon Europe</strong> Research Infrastructures project providing and
+        enhancing access to key geoscience data, products and services — enabling
+        geosphere dynamics to be monitored and modelled at new levels of spatial and
+        temporal detail across the land–sea–atmosphere environment.<br><br>
+        <strong>Key facts</strong><br>
         &bull; <strong>Grant No:</strong> 101058518<br>
         &bull; <strong>Call:</strong> HORIZON-INFRA-2021-SERV-01<br>
+        &bull; <strong>Duration:</strong> Oct 2022 – Sep 2026 (48 months)<br>
+        &bull; <strong>EU contribution:</strong> €13.92 million<br>
         &bull; <strong>Partners:</strong> 51 organisations<br>
-        &bull; <strong>Facilities:</strong> 150+ VA & TA services<br>
-        &bull; <strong>RIs:</strong> EPOS, EMSO, ECCSEL
+        &bull; <strong>Portfolio:</strong> 150+ Virtual &amp; Transnational Access facilities<br>
+        &bull; <strong>Main RIs:</strong> EPOS, EMSO, ChEESE
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="font-size:0.75rem; color:#888; line-height:1.4;">
+    <div style="font-size:0.75rem; color:#94a3b8; line-height:1.45;">
         <a href="https://www.geo-inquire.eu/" target="_blank"
-           style="color:#2980B9; text-decoration:none; font-weight:600;">
+           style="color:#2563eb; text-decoration:none; font-weight:600;">
            www.geo-inquire.eu</a><br>
         University of Bergen, Norway<br>
-        © 2024–2026 Geo-INQUIRE Project
+        © 2022–2026 Geo-INQUIRE Consortium
     </div>
     """, unsafe_allow_html=True)
 
@@ -742,6 +812,67 @@ def load_excel_data():
         import traceback
         st.error(traceback.format_exc())
         return None, None, None, None, None, None
+
+
+# ===============================================================================================
+# HISTORICAL-DATA LOADER — one frozen snapshot per project year
+# ===============================================================================================
+def _apply_va_column_renames(df):
+    """
+    Normalise VA column names across all historical and current workbooks.
+    Covers three vintages of the ILM matrix (2023 / 2024 / 2025+).
+    """
+    rename_map = {
+        "TCS Name"                      : "contact_person",
+        "Service Group Name"            : "affiliation",
+        "Research infrastructure (RI)"  : "compliant_ri",
+        "Contact person"                : "contact_person",
+        "Email"                         : "email",
+        "Affiliation"                   : "affiliation",
+        "Service/Installation Name"     : "service_name",
+        "Compliant with Research infrastructure (RI)": "compliant_ri",
+    }
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    long_renames = {}
+    for c in df.columns:
+        s = str(c).lower()
+        if "implementation status to ri" in s:
+            long_renames[c] = "implementation_status"
+        elif "data representations" in s:
+            long_renames[c] = "data_repr"
+        elif s.strip() == "license":
+            long_renames[c] = "license"
+        elif "standard of metadata describing the service" in s:
+            long_renames[c] = "metadata_standard"
+        elif "gender" in s and "pi" not in s:
+            long_renames[c] = "gender"
+    df = df.rename(columns=long_renames)
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_historical_va_data():
+    """
+    Read each frozen ILM workbook in HISTORICAL_VA_FILES and return a dict
+    {year_label: dataframe}.  Missing files are skipped silently.
+    """
+    out = {}
+    for year_label, path in HISTORICAL_VA_FILES.items():
+        if not os.path.exists(path):
+            out[year_label] = None
+            continue
+        try:
+            xl = pd.ExcelFile(path)
+            sheet = next((s for s in HISTORICAL_VA_SHEET_CANDIDATES if s in xl.sheet_names), None)
+            if sheet is None:
+                out[year_label] = None
+                continue
+            df = pd.read_excel(path, sheet_name=sheet, header=3)
+            df = _apply_va_column_renames(df)
+            out[year_label] = df
+        except Exception:
+            out[year_label] = None
+    return out
 
 
 # -------------------------------------------------------------------------
@@ -1084,6 +1215,18 @@ else:
         """)
         st.stop()
 
+# ===============================================================================================
+# Compose the per-year data dict that drives every VA year tab.
+# 2023 / 2024 / 2025 = frozen snapshots; 2026 = live current data.
+# ===============================================================================================
+_historical_va = load_historical_va_data()
+VA_DATA_BY_YEAR = {
+    "2023": _historical_va.get("2023"),
+    "2024": _historical_va.get("2024"),
+    "2025": _historical_va.get("2025"),
+    "2026": va_df,            # 2026 tab = the live, interactive current data
+}
+
 # ------------------------------- Helper Functions (ORIGINAL) -------------------------------
 def standardize_implementation_value(val):
     """Standardize implementation values to categorical labels"""
@@ -1113,48 +1256,67 @@ def standardize_binary_value(val):
         return 'N/A'
 
 def compute_va_statistics(df):
-    """Compute statistics for Virtual Access"""
+    """
+    Compute summary statistics for the Virtual Access dataframe.
+
+    Every value_counts() result is fed through a small "drop the misleading 0
+    and empty labels" cleaner so categorical pies / donuts don't end up with a
+    cyan "0" slice when the source sheet has zeros, blanks or "nan" strings
+    used as placeholders.
+    """
     if df is None or df.empty:
         return {}
-    
+
+    # ── Helper: turn a Series into an ORDERED dict of label → count, ────────
+    # ── dropping misleading "0" / empty / nan / "-" placeholders. ──────────
+    def _clean_counts(series, head_n=None):
+        cleaned = series.dropna().astype(str).str.strip()
+        bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
+        cleaned = cleaned[~cleaned.isin(bogus)]
+        if cleaned.empty:
+            return {}
+        vc = cleaned.value_counts()
+        if head_n is not None:
+            vc = vc.head(head_n)
+        return vc.to_dict()
+
     stats = {}
-    
+
     if 'implementation_status' in df.columns:
-        impl_counts = df['implementation_status'].apply(standardize_implementation_value).value_counts().to_dict()
-        stats['implementation'] = impl_counts
-    
+        impl_counts = df['implementation_status'].apply(standardize_implementation_value)
+        stats['implementation'] = _clean_counts(impl_counts)
+
     if 'service_running' in df.columns:
-        running_counts = df['service_running'].apply(standardize_binary_value).value_counts().to_dict()
-        stats['service_running'] = running_counts
-    
+        running_counts = df['service_running'].apply(standardize_binary_value)
+        stats['service_running'] = _clean_counts(running_counts)
+
     if 'parametrization' in df.columns:
-        param_counts = df['parametrization'].apply(standardize_binary_value).value_counts().to_dict()
-        stats['parametrization'] = param_counts
-    
+        param_counts = df['parametrization'].apply(standardize_binary_value)
+        stats['parametrization'] = _clean_counts(param_counts)
+
     if 'fully_described' in df.columns:
-        desc_counts = df['fully_described'].apply(standardize_binary_value).value_counts().to_dict()
-        stats['fully_described'] = desc_counts
-    
+        desc_counts = df['fully_described'].apply(standardize_binary_value)
+        stats['fully_described'] = _clean_counts(desc_counts)
+
     if 'documentation_status' in df.columns:
-        doc_counts = df['documentation_status'].apply(standardize_implementation_value).value_counts().to_dict()
-        stats['documentation'] = doc_counts
-    
+        doc_counts = df['documentation_status'].apply(standardize_implementation_value)
+        stats['documentation'] = _clean_counts(doc_counts)
+
     if 'payloads' in df.columns:
-        payload_counts = df['payloads'].apply(standardize_binary_value).value_counts().to_dict()
-        stats['payloads'] = payload_counts
-    
+        payload_counts = df['payloads'].apply(standardize_binary_value)
+        stats['payloads'] = _clean_counts(payload_counts)
+
     if 'auth_method' in df.columns:
-        auth_counts = df['auth_method'].value_counts().head(5).to_dict()
-        stats['auth'] = auth_counts
-    
+        # Auth method is free-text in the source sheet; keep the top 5 only.
+        stats['auth'] = _clean_counts(df['auth_method'], head_n=5)
+
     if 'data_policy' in df.columns:
-        policy_counts = df['data_policy'].value_counts().to_dict()
-        stats['policy'] = policy_counts
-    
+        stats['policy'] = _clean_counts(df['data_policy'])
+
     if 'converter_plugin' in df.columns:
-        conv_counts = df['converter_plugin'].apply(standardize_binary_value).value_counts().to_dict()
-        stats['converter'] = conv_counts
-    
+        conv_counts = df['converter_plugin'].apply(standardize_binary_value)
+        stats['converter'] = _clean_counts(conv_counts)
+
     return stats
 
 # ===============================================================================================
@@ -1239,79 +1401,115 @@ def build_four_row_header(header_rows, ncols):
 #   * a single download button under the latest year tab (2026) to avoid
 #     duplicating identical buttons on every tab.
 # ===============================================================================================
-def render_in_year_tabs(fig, figure_key, source_cols=None, access_type="VA",
-                        download_label_base=None, figure_title=""):
+def render_in_year_tabs(fig_or_builder, figure_key, source_cols=None, access_type="VA",
+                        download_label_base=None, figure_title="",
+                        data_by_year=None):
     """
-    Render ``fig`` inside four tabs labelled by ``YEAR_TABS``.
+    Render a chart across four year tabs (2023 / 2024 / 2025 / 2026).
 
-    Parameters
-    ----------
-    fig                 : plotly.graph_objects.Figure or matplotlib Figure
-        The all-years figure to show as a placeholder inside each tab.
-    figure_key          : str
-        Stable identifier used for Streamlit widget keys (must be unique
-        across the page).  Year and tab suffixes are appended automatically.
-    source_cols         : list[str] | None
-        Internal column keys for ``add_source_annotation`` (optional).
-    access_type         : "VA" or "TA"
-        Selects which source-column mapping is used in the annotation.
-    download_label_base : str | None
-        Filename base for the PNG download button.  If None no button is
-        rendered.
-    figure_title        : str
-        Human-readable figure title used inside the placeholder banner.
+    `fig_or_builder` may be:
+      * a pre-built Plotly/matplotlib figure  (shown identically in every tab)
+      * a callable `(df, year_label) → Figure` (preferred — rebuilds per year)
     """
-    if fig is None:
+    if data_by_year is None:
+        data_by_year = VA_DATA_BY_YEAR
+    is_builder = callable(fig_or_builder) and not hasattr(fig_or_builder, "to_image")
+    if not is_builder and fig_or_builder is None:
         st.info(f"⚠️ No data available for: {figure_title or figure_key}")
         return
 
-    # Create the four year tabs in the order defined by YEAR_TABS.
-    year_tab_labels = [f"📅 {y}" for y in YEAR_TABS]
-    tabs = st.tabs(year_tab_labels)
-
-    for tab, year in zip(tabs, YEAR_TABS):
+    tabs = st.tabs(list(YEAR_TAB_LABELS))
+    for tab, year_label in zip(tabs, YEAR_TAB_KEYS):
         with tab:
-            # ╔══════════════════════════════════════════════════════════════╗
-            # ║  >>> APPEND YEAR-{year} FIGURE FOR THIS CHART BELOW <<<      ║
-            # ║                                                              ║
-            # ║  This tab currently shows the all-years figure as a place-   ║
-            # ║  holder.  Replace the `st.plotly_chart` / `st.pyplot` call   ║
-            # ║  below with the chart built from data filtered to year       ║
-            # ║  == {year} once it becomes available.                        ║
-            # ╚══════════════════════════════════════════════════════════════╝
-            st.info(
-                f"📅 **{year} view of '{figure_title or figure_key}'** — placeholder. "
-                f"Replace the chart below with a {year}-specific figure when ready."
-            )
-
-            # Render the placeholder figure.  We branch on figure type because
-            # the heatmap is a matplotlib Figure while everything else is
-            # Plotly.  Streamlit handles both via different functions.
+            year_df = data_by_year.get(year_label)
+            if year_df is None or (hasattr(year_df, "empty") and year_df.empty):
+                st.info(f"📂 No data available for **{year_label}**. "
+                        f"Drop the matching snapshot into `ILM_Old/` to populate this tab.")
+                continue
+            try:
+                fig = fig_or_builder(year_df, year_label) if is_builder else fig_or_builder
+            except Exception as e:
+                st.warning(f"Could not build chart for {year_label}: {e}")
+                continue
+            if fig is None:
+                st.info(f"No data for **{figure_title or figure_key}** in {year_label}.")
+                continue
             if isinstance(fig, plt.Figure):
                 st.pyplot(fig, clear_figure=False, use_container_width=False)
             else:
-                st.plotly_chart(
-                    fig,
-                    use_container_width=False,
-                    key=f"{figure_key}_{year}"
-                )
-
-            # Show the source-column annotation only once per tab.
+                st.plotly_chart(fig, use_container_width=False,
+                                key=f"{figure_key}_{year_label}")
             if source_cols:
                 add_source_annotation(source_cols, access_type=access_type)
-
-            # Render a single download button under the most recent year tab
-            # to avoid cluttering every tab with identical buttons.
-            if download_label_base and year == YEAR_TABS[-1]:
-                create_download_button(
-                    fig,
-                    f"{download_label_base}_{year}",
-                    col_keys=source_cols,
-                    access_type=access_type,
-                )
+            if download_label_base and year_label == YEAR_TAB_KEYS[-1]:
+                create_download_button(fig, f"{download_label_base}_{year_label}",
+                                       col_keys=source_cols, access_type=access_type)
 
 
+def render_in_call_tabs(fig_or_builder, figure_key, ta_dataframe,
+                        source_cols=None,
+                        download_label_base=None, figure_title=""):
+    """
+    Render a TA chart across four Call tabs (Call 1 → Call 4), filtered by the
+    `call` column or the `project_id` prefix.
+    """
+    is_builder = callable(fig_or_builder) and not hasattr(fig_or_builder, "to_image")
+    if not is_builder and fig_or_builder is None:
+        st.info(f"⚠️ No data available for: {figure_title or figure_key}")
+        return
+    if ta_dataframe is None or ta_dataframe.empty:
+        st.info("⚠️ No Transnational Access data loaded.")
+        return
 
+    tabs = st.tabs(list(CALL_TAB_LABELS))
+    for tab, call_label in zip(tabs, CALL_TAB_KEYS):
+        with tab:
+            df_call = ta_dataframe
+            if "call" in df_call.columns:
+                num = call_label.split()[-1]
+                df_call = df_call[df_call["call"].astype(str).str.strip() == num]
+            elif "project_id" in df_call.columns:
+                prefix = CALL_PREFIXES[call_label]
+                df_call = df_call[df_call["project_id"].astype(str).str.startswith(prefix)]
+            if df_call.empty:
+                st.info(f"📂 No projects in **{call_label}** yet.")
+                continue
+            try:
+                fig = fig_or_builder(df_call, call_label) if is_builder else fig_or_builder
+            except Exception as e:
+                st.warning(f"Could not build chart for {call_label}: {e}")
+                continue
+            if fig is None:
+                st.info(f"No data for {figure_title or figure_key} in {call_label}.")
+                continue
+            if isinstance(fig, plt.Figure):
+                st.pyplot(fig, clear_figure=False, use_container_width=False)
+            else:
+                st.plotly_chart(fig, use_container_width=False,
+                                key=f"{figure_key}_{call_label.replace(' ', '_')}")
+            if source_cols:
+                add_source_annotation(source_cols, access_type="TA")
+            if download_label_base and call_label == CALL_TAB_KEYS[-1]:
+                create_download_button(fig,
+                    f"{download_label_base}_{call_label.replace(' ', '_')}",
+                    col_keys=source_cols, access_type="TA")
+
+
+def value_counts_clean(series):
+    """
+    Like Series.value_counts() but strips NaN/None, empty strings, the literal
+    strings "0"/"0.0"/"nan"/"-", and numeric zeros.  Returns a list of (label,
+    count) tuples, largest first.
+    """
+    if series is None:
+        return []
+    s = series.dropna()
+    stripped = s.astype(str).str.strip()
+    bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
+    cleaned = stripped[~stripped.isin(bogus)]
+    if cleaned.empty:
+        return []
+    return list(cleaned.value_counts().items())
 # ===============================================================================================
 # COLUMN SOURCE MAPPING — Maps internal column names to original ILM table column names
 # ===============================================================================================
@@ -1552,148 +1750,187 @@ def create_enhanced_heatmap(df):
 
 # ------------------------------- ORIGINAL VA Chart Functions -------------------------------
 def create_professional_bar_chart(df, x, y, title, orientation='v', color_palette=None):
-    """Create a professional bar chart"""
+    """
+    Elegant bar chart.
+
+    Refinements over the default Plotly look:
+      • Title left-aligned (editorial style) instead of centered.
+      • Subtle horizontal grid only (no vertical gridlines, no axis lines).
+      • Larger top margin so the bar value labels never clip the title.
+      • Slightly muted bar colors from the curated COLORS palette.
+    """
     if df is None or df.empty:
         return go.Figure()
-    
+
     if color_palette is None:
         color_palette = COLORS['blue_palette']
-    
+
     fig = go.Figure()
-    
+    bar_kwargs = dict(
+        marker=dict(
+            color=color_palette if isinstance(color_palette, list) else [color_palette] * len(df),
+            line=dict(width=0),
+        ),
+        textfont=dict(size=12, family=FONT_FAMILY, color=COLORS['secondary']),
+        showlegend=False,
+        hovertemplate='<b>%{x}</b>: %{y}<extra></extra>' if orientation == 'v'
+                      else '<b>%{y}</b>: %{x}<extra></extra>',
+    )
     if orientation == 'v':
-        fig.add_trace(go.Bar(
-            x=df[x],
-            y=df[y],
-            marker=dict(
-                color=color_palette if isinstance(color_palette, list) else [color_palette] * len(df),
-                line=dict(width=0)
-            ),
-            text=df[y],
-            textposition='outside',
-            textfont=dict(size=12, family=FONT_FAMILY),
-            showlegend=False
-        ))
+        fig.add_trace(go.Bar(x=df[x], y=df[y], text=df[y],
+                             textposition='outside', **bar_kwargs))
     else:
-        fig.add_trace(go.Bar(
-            x=df[x],
-            y=df[y],
-            orientation='h',
-            marker=dict(
-                color=color_palette if isinstance(color_palette, list) else [color_palette] * len(df),
-                line=dict(width=0)
-            ),
-            text=df[x],
-            textposition='outside',
-            textfont=dict(size=12, family=FONT_FAMILY),
-            showlegend=False
-        ))
-    
+        fig.add_trace(go.Bar(x=df[x], y=df[y], orientation='h', text=df[x],
+                             textposition='outside', **bar_kwargs))
+
     fig.update_layout(
-        title=dict(text=title, font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark'])),
-        xaxis=dict(showgrid=False, zeroline=False, title='', tickfont=dict(size=TICK_FONT_SIZE)),
-        yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)', zeroline=False, title='', tickfont=dict(size=TICK_FONT_SIZE)),
+        title=dict(text=f"<b>{title}</b>", x=0.02, xanchor='left',
+                   font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY,
+                             color=COLORS['primary'])),
+        xaxis=dict(showgrid=False, zeroline=False, showline=False, title='',
+                   tickfont=dict(size=TICK_FONT_SIZE, color=COLORS['secondary'])),
+        yaxis=dict(showgrid=True, gridcolor='rgba(15,23,42,0.06)', gridwidth=1,
+                   zeroline=False, showline=False, title='',
+                   tickfont=dict(size=TICK_FONT_SIZE, color=COLORS['secondary'])),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        margin=dict(l=20, r=20, t=60, b=40),
+        margin=dict(l=24, r=24, t=72, b=48),
         height=500,
-        width=1200,  # FIXED WIDTH
-        font=dict(family=FONT_FAMILY),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.2,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=10)
-        )
+        width=1200,
+        font=dict(family=FONT_FAMILY, color=COLORS['secondary']),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2,
+                    xanchor="center", x=0.5, font=dict(size=10)),
     )
-    
     return fig
+
+
+def _filter_zero_slices(labels, values):
+    """
+    Strip misleading slices from a labels/values pair before drawing a pie or
+    donut.  Removes any slice whose label is empty / "0" / "0.0" / "nan" / "-",
+    AND any slice whose value is zero (no point drawing an invisible wedge).
+    Returns a list of (label, value) pairs.
+    """
+    bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
+    out = []
+    for lab, val in zip(labels, values):
+        s = "" if lab is None else str(lab).strip()
+        try:
+            v_num = float(val)
+        except Exception:
+            v_num = 0.0
+        if s in bogus or v_num <= 0:
+            continue
+        out.append((s, v_num))
+    return out
+
 
 def create_professional_donut_chart(df, names, values, title, color_map=None):
-    """Create a professional donut chart"""
+    """
+    Elegant donut chart.
+
+    • Slices with label "0" / empty / "nan" or value ≤ 0 are dropped silently —
+      this is what fixes the misleading "0 — 51.4%" wedge in the TA Project
+      Stage chart.
+    • Title is left-aligned and stays inside the chart's bounding box.
+    • White slice separators give a clean editorial look.
+    """
     if df is None or df.empty:
         return go.Figure()
-    
+
+    filtered = _filter_zero_slices(df[names].tolist(), df[values].tolist())
+    if not filtered:
+        return go.Figure()
+    labels = [a for a, _ in filtered]
+    vals   = [b for _, b in filtered]
+
     if color_map:
-        colors = [color_map.get(name, COLORS['info']) for name in df[names]]
+        colors = [color_map.get(name, COLORS['multi_palette'][i % len(COLORS['multi_palette'])])
+                  for i, name in enumerate(labels)]
     else:
-        colors = COLORS['multi_palette'][:len(df)]
-    
+        colors = (COLORS['multi_palette'] * (len(labels) // len(COLORS['multi_palette']) + 1))[:len(labels)]
+
     fig = go.Figure()
     fig.add_trace(go.Pie(
-        labels=df[names],
-        values=df[values],
-        hole=0.4,
-        marker=dict(colors=colors, line=dict(color='white', width=2)),
+        labels=labels,
+        values=vals,
+        hole=0.55,
+        marker=dict(colors=colors, line=dict(color='white', width=2.5)),
         textinfo='label+percent',
-        textfont=dict(size=12, family=FONT_FAMILY),
-        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+        textposition='outside',
+        textfont=dict(size=12, family=FONT_FAMILY, color=COLORS['dark']),
+        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>',
+        pull=[0.01] * len(labels),       # tiny separation between slices
+        sort=True,
     ))
-    
     fig.update_layout(
-        title=dict(text=title, font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark'])),
+        title=dict(text=f"<b>{title}</b>", x=0.02, xanchor='left',
+                   font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY,
+                             color=COLORS['primary'])),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        margin=dict(l=20, r=20, t=60, b=100),
-        height=500,
-        width=1200,  # FIXED WIDTH
+        margin=dict(l=24, r=24, t=72, b=120),
+        height=520,
+        width=1200,
         font=dict(family=FONT_FAMILY),
         showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.2,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=10),
-            traceorder="normal"
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=-0.22,
+                    xanchor="center", x=0.5,
+                    font=dict(size=11, color=COLORS['secondary']),
+                    traceorder="normal", bgcolor='rgba(0,0,0,0)'),
     )
-    
     return fig
 
+
 def create_professional_pie_chart(df, names, values, title, color_map=None):
-    """Create a professional pie chart"""
+    """
+    Elegant pie chart.
+
+    Same zero-/empty-slice filter as the donut so categorical pies (e.g. the
+    Authentication chart that showed a misleading "0" slice at 2.8 %) only
+    contain meaningful labels.
+    """
     if df is None or df.empty:
         return go.Figure()
-    
+
+    filtered = _filter_zero_slices(df[names].tolist(), df[values].tolist())
+    if not filtered:
+        return go.Figure()
+    labels = [a for a, _ in filtered]
+    vals   = [b for _, b in filtered]
+
     if color_map:
-        colors = [color_map.get(name, COLORS['info']) for name in df[names]]
+        colors = [color_map.get(name, COLORS['multi_palette'][i % len(COLORS['multi_palette'])])
+                  for i, name in enumerate(labels)]
     else:
-        colors = COLORS['multi_palette'][:len(df)]
-    
+        colors = (COLORS['multi_palette'] * (len(labels) // len(COLORS['multi_palette']) + 1))[:len(labels)]
+
     fig = go.Figure()
     fig.add_trace(go.Pie(
-        labels=df[names],
-        values=df[values],
-        marker=dict(colors=colors, line=dict(color='white', width=2)),
+        labels=labels,
+        values=vals,
+        marker=dict(colors=colors, line=dict(color='white', width=2.5)),
         textinfo='percent',
-        textfont=dict(size=11, family=FONT_FAMILY),
-        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+        textfont=dict(size=12, family=FONT_FAMILY, color='white'),
+        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>',
+        sort=True,
     ))
-    
     fig.update_layout(
-        title=dict(text=title, font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark'])),
+        title=dict(text=f"<b>{title}</b>", x=0.02, xanchor='left',
+                   font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY,
+                             color=COLORS['primary'])),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        margin=dict(l=20, r=20, t=60, b=100),
-        height=500,
-        width=1200,  # FIXED WIDTH
+        margin=dict(l=24, r=24, t=72, b=120),
+        height=520,
+        width=1200,
         font=dict(family=FONT_FAMILY),
         showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.25,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=9),
-            traceorder="normal"
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=-0.22,
+                    xanchor="center", x=0.5,
+                    font=dict(size=11, color=COLORS['secondary']),
+                    traceorder="normal", bgcolor='rgba(0,0,0,0)'),
     )
-    
     return fig
 
 # ------------------------------- MAIN CONTENT -------------------------------
@@ -1723,7 +1960,7 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # ===== 5 KEY DASHBOARD VISUALIZATIONS =====
-            st.markdown("## 📊 Key Metrics Overview")
+            st.markdown("## Key Metrics Overview")
             
             # Row 1: RI and Implementation Status (2 columns)
             col1, col2 = st.columns(2)
@@ -1735,8 +1972,10 @@ if selected == "Dashboard":
                 # The figure is then rendered inside four year tabs (2023–2026)
                 # via `render_in_year_tabs`, with placeholder banners so the
                 # user can replace each tab's content with year-specific data.
-                if 'compliant_ri' in va_df.columns:
-                    ri_counts = va_df['compliant_ri'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('compliant_ri' in _df.columns):
+                        return None
+                    ri_counts = _df['compliant_ri'].value_counts().to_dict()
                     ri_data = pd.DataFrame(list(ri_counts.items()), columns=['RI', 'Count']).sort_values('Count', ascending=False)
                     
                     # Build the all-years bar chart for RI distribution.
@@ -1768,14 +2007,15 @@ if selected == "Dashboard":
                     )
                     
                     # Render inside the four year tabs (2023, 2024, 2025, 2026).
-                    render_in_year_tabs(
-                        fig_ri,
-                        figure_key="ri_distribution",
-                        source_cols=["compliant_ri"],
-                        access_type="VA",
-                        download_label_base="ri_distribution",
-                        figure_title="1. Research Infrastructures (RI)",
-                    )
+                    return fig_ri
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="ri_distribution",
+                    source_cols=["compliant_ri"],
+                    access_type="VA",
+                    download_label_base="ri_distribution",
+                    figure_title="1. Research Infrastructures (RI)",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -1784,8 +2024,10 @@ if selected == "Dashboard":
                 # Donut chart of services by implementation status. The chart is
                 # rendered inside four year tabs (2023–2026) so per-year figures
                 # can be appended later.
-                if 'implementation_status' in va_df.columns:
-                    impl_counts = va_df['implementation_status'].apply(standardize_implementation_value).value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('implementation_status' in _df.columns):
+                        return None
+                    impl_counts = _df['implementation_status'].apply(standardize_implementation_value).value_counts().to_dict()
                     impl_data = pd.DataFrame(list(impl_counts.items()), columns=['Status', 'Count']).sort_values('Count', ascending=False)
                     
                     color_map = {
@@ -1828,14 +2070,15 @@ if selected == "Dashboard":
                         margin=dict(l=40, r=40, t=80, b=100)
                     )
                     
-                    render_in_year_tabs(
-                        fig_impl,
-                        figure_key="implementation_status",
-                        source_cols=["implementation_status"],
-                        access_type="VA",
-                        download_label_base="implementation_status",
-                        figure_title="2. Implementation Status to RI",
-                    )
+                    return fig_impl
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="implementation_status",
+                    source_cols=["implementation_status"],
+                    access_type="VA",
+                    download_label_base="implementation_status",
+                    figure_title="2. Implementation Status to RI",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -1845,7 +2088,9 @@ if selected == "Dashboard":
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'data_repr' in va_df.columns:
+                def _builder(_df, _yr):
+                    if not ('data_repr' in _df.columns):
+                        return None
                     # Simplify data representations for better visualization
                     def simplify_data_repr(val):
                         if pd.isna(val):
@@ -1864,7 +2109,7 @@ if selected == "Dashboard":
                         else:
                             return 'Other'
                     
-                    data_repr_counts = va_df['data_repr'].apply(simplify_data_repr).value_counts().head(8).to_dict()
+                    data_repr_counts = _df['data_repr'].apply(simplify_data_repr).value_counts().head(8).to_dict()
                     data_repr_data = pd.DataFrame(list(data_repr_counts.items()), columns=['Type', 'Count']).sort_values('Count', ascending=True)
                     
                     fig_repr = go.Figure()
@@ -1895,19 +2140,22 @@ if selected == "Dashboard":
                         font=dict(family=FONT_FAMILY)
                     )
                     
-                    render_in_year_tabs(
-                        fig_repr,
-                        figure_key="data_representations",
-                        source_cols=["data_repr"],
-                        access_type="VA",
-                        download_label_base="data_representations",
-                        figure_title="3. Data Representations",
-                    )
+                    return fig_repr
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="data_representations",
+                    source_cols=["data_repr"],
+                    access_type="VA",
+                    download_label_base="data_representations",
+                    figure_title="3. Data Representations",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'license' in va_df.columns:
+                def _builder(_df, _yr):
+                    if not ('license' in _df.columns):
+                        return None
                     # Simplify license names for better visualization
                     def simplify_license(val):
                         if pd.isna(val):
@@ -1932,22 +2180,27 @@ if selected == "Dashboard":
                         else:
                             return 'Other'
                     
-                    license_counts = va_df['license'].apply(simplify_license).value_counts().head(8).to_dict()
+                    license_clean = _df['license'].apply(simplify_license).dropna().astype(str).str.strip()
+                    _bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
+                    license_clean = license_clean[~license_clean.isin(_bogus)]
+                    license_counts = license_clean.value_counts().head(8).to_dict()
                     license_data = pd.DataFrame(list(license_counts.items()), columns=['License', 'Count']).sort_values('Count', ascending=False)
                     
                     fig_license = go.Figure()
                     fig_license.add_trace(go.Pie(
                         labels=license_data['License'],
                         values=license_data['Count'],
-                        marker=dict(colors=COLORS['multi_palette'][:len(license_data)], line=dict(color='white', width=2)),
+                        marker=dict(colors=COLORS['multi_palette'][:len(license_data)], line=dict(color='white', width=2.5)),
                         textinfo='label+percent',
-                        textfont=dict(size=11, family=FONT_FAMILY),
-                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+                        textposition='outside',
+                        textfont=dict(size=12, family=FONT_FAMILY, color=COLORS['dark']),
+                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>',
+                        sort=True,
                     ))
                     
                     fig_license.update_layout(
-                        title=dict(text='4. License Distribution',
-                                 font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['dark'])),
+                        title=dict(text='<b>4. License Distribution</b>', x=0.02, xanchor='left',
+                                 font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY, color=COLORS['primary'])),
                         plot_bgcolor='white',
                         paper_bgcolor='white',
                         height=450,
@@ -1960,27 +2213,30 @@ if selected == "Dashboard":
                             y=-0.25,
                             xanchor="center",
                             x=0.5,
-                            font=dict(size=9)
+                            font=dict(size=11, color=COLORS['secondary'])
                         ),
                         margin=dict(l=40, r=40, t=80, b=110)
                     )
                     
-                    render_in_year_tabs(
-                        fig_license,
-                        figure_key="va_license_distribution",
-                        source_cols=["license"],
-                        access_type="VA",
-                        download_label_base="license_distribution",
-                        figure_title="4. License Distribution",
-                    )
+                    return fig_license
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="va_license_distribution",
+                    source_cols=["license"],
+                    access_type="VA",
+                    download_label_base="license_distribution",
+                    figure_title="4. License Distribution",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 3: Metadata Standards (full width)
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            if 'metadata_standard' in va_df.columns:
-                metadata_counts = va_df['metadata_standard'].value_counts().head(10).to_dict()
+            def _builder(_df, _yr):
+                if not ('metadata_standard' in _df.columns):
+                    return None
+                metadata_counts = _df['metadata_standard'].value_counts().head(10).to_dict()
                 metadata_data = pd.DataFrame(list(metadata_counts.items()), columns=['Standard', 'Count']).sort_values('Count', ascending=False)
                 
                 fig_metadata = go.Figure()
@@ -2010,14 +2266,15 @@ if selected == "Dashboard":
                     font=dict(family=FONT_FAMILY)
                 )
                 
-                render_in_year_tabs(
-                    fig_metadata,
-                    figure_key="va_metadata_standards_dashboard",
-                    source_cols=["metadata_standard"],
-                    access_type="VA",
-                    download_label_base="metadata_standards",
-                    figure_title="5. Standards of Metadata Describing the Service",
-                )
+                return fig_metadata
+            render_in_year_tabs(
+                _builder,
+                figure_key="va_metadata_standards_dashboard",
+                source_cols=["metadata_standard"],
+                access_type="VA",
+                download_label_base="metadata_standards",
+                figure_title="5. Standards of Metadata Describing the Service",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("---")
@@ -2028,55 +2285,51 @@ if selected == "Dashboard":
             #    We wrap it inside the four year tabs (2023–2026) just like the
             #    other Dashboard figures so the user can append year-specific
             #    heatmaps later.
-            st.markdown("## 📊 Implementation Matrix Analysis")
+            st.markdown("## Implementation Matrix Analysis")
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             
             if va_df is not None and not va_df.empty:
                 try:
-                    # Build the all-years heatmap once and reuse it across tabs.
-                    fig_heatmap = create_enhanced_heatmap(va_df)
-                    if fig_heatmap:
-                        # Create the year tabs manually (matplotlib needs special
-                        # download-button handling, so we don't go through the
-                        # render_in_year_tabs helper here).
-                        year_tab_labels = [f"📅 {y}" for y in YEAR_TABS]
-                        _heatmap_tabs = st.tabs(year_tab_labels)
-                        for _tab, _yr in zip(_heatmap_tabs, YEAR_TABS):
-                            with _tab:
-                                # ╔══════════════════════════════════════════════════════╗
-                                # ║  >>> APPEND YEAR-{_yr} HEATMAP BELOW THIS LINE <<<   ║
-                                # ║  Replace the call below with a year-specific build   ║
-                                # ║  once year-filtered data is available.                ║
-                                # ╚══════════════════════════════════════════════════════╝
-                                st.info(
-                                    f"📅 **{_yr} view of Implementation Matrix** — placeholder. "
-                                    f"Replace the chart below with a {_yr}-specific heatmap when ready."
+                    # Build the heatmap fresh per year tab using the matching
+                    # historical snapshot.  the 2026 tab uses the live data.
+                    _heatmap_tabs = st.tabs(list(YEAR_TAB_LABELS))
+                    for _tab, _yr in zip(_heatmap_tabs, YEAR_TAB_KEYS):
+                        with _tab:
+                            year_df = VA_DATA_BY_YEAR.get(_yr)
+                            if year_df is None or year_df.empty:
+                                st.info(f"📂 No data available for **{_yr}**. "
+                                        f"Drop the matching snapshot into `ILM_Old/` to populate this tab.")
+                                continue
+                            try:
+                                fig_heatmap_y = create_enhanced_heatmap(year_df)
+                            except Exception as e:
+                                st.warning(f"Could not build heatmap for {_yr}: {e}")
+                                continue
+                            if not fig_heatmap_y:
+                                st.info(f"Heatmap data not available for {_yr}.")
+                                continue
+                            st.pyplot(fig_heatmap_y, clear_figure=False, use_container_width=False)
+
+                            # Single download button only on the 2026 (live) tab.
+                            if _yr == YEAR_TAB_KEYS[-1]:
+                                buf = io.BytesIO()
+                                fig_heatmap_y.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                                buf.seek(0)
+                                st.download_button(
+                                    label="Download Implementation Matrix (High-Res PNG)",
+                                    data=buf,
+                                    file_name=f"implementation_matrix_heatmap_{_yr}.png",
+                                    mime="image/png",
+                                    key=f"heatmap_download_{_yr}",
                                 )
-                                st.pyplot(fig_heatmap, clear_figure=False, use_container_width=False)
-                                
-                                # Render the download button only on the most recent
-                                # year tab to avoid duplicate buttons / key clashes.
-                                if _yr == YEAR_TABS[-1]:
-                                    buf = io.BytesIO()
-                                    fig_heatmap.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-                                    buf.seek(0)
-                                    st.download_button(
-                                        label="📥 Download Implementation Matrix (High-Res PNG)",
-                                        data=buf,
-                                        file_name=f"implementation_matrix_heatmap_{_yr}.png",
-                                        mime="image/png",
-                                        key=f"heatmap_download_{_yr}",
-                                    )
-                                    add_source_annotation(
-                                        ["compliant_ri", "implementation_status", "data_repr"],
-                                        access_type="VA",
-                                    )
-                                    st.caption(
-                                        "**Legend:** Large numbers in center = Total services | "
-                                        "Green boxes with ✓ = Implemented services"
-                                    )
-                    else:
-                        st.info("Heatmap data not available")
+                                add_source_annotation(
+                                    ["compliant_ri", "implementation_status", "data_repr"],
+                                    access_type="VA",
+                                )
+                                st.caption(
+                                    "**Legend:** Large numbers in center = Total services | "
+                                    "Green boxes with ✓ = Implemented services"
+                                )
                 except Exception as e:
                     st.warning(f"Could not generate heatmap: {str(e)}")
             
@@ -2103,12 +2356,22 @@ if selected == "Dashboard":
             st.markdown("---")
             
             # TA Overview
-            st.markdown("## 📊 Transnational Access Overview")
+            st.markdown("## Transnational Access Overview")
             col1, col2 = st.columns(2)
             
             with col1:
-                if 'project_stage' in ta_df.columns:
-                    stage_counts = ta_df['project_stage'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('project_stage' in _df.columns):
+                        return None
+                    # Strip out misleading "0" / empty / nan placeholders before
+                    # building the donut — otherwise the empty cells in the
+                    # source sheet show up as a 50%+ "0" wedge in the legend.
+                    stage_clean = _df['project_stage'].dropna().astype(str).str.strip()
+                    bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
+                    stage_clean = stage_clean[~stage_clean.isin(bogus)]
+                    if stage_clean.empty:
+                        return None
+                    stage_counts = stage_clean.value_counts().to_dict()
                     stage_data = pd.DataFrame(list(stage_counts.items()), columns=['Stage', 'Count']).sort_values('Count', ascending=False)
                     stage_color_map = {
                         'Visit/access exhausted': COLORS['exhausted'],
@@ -2120,30 +2383,34 @@ if selected == "Dashboard":
                     fig_stage = create_professional_donut_chart(stage_data, 'Stage', 'Count',
                                                                'Project Stage Distribution',
                                                                color_map=stage_color_map)
-                    render_in_year_tabs(
-                        fig_stage,
-                        figure_key="project_stages",
-                        source_cols=["project_stage"],
-                        access_type="TA",
-                        download_label_base="project_stages",
-                        figure_title="Project Stages",
-                    )
+                    return fig_stage
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="project_stages",
+                    ta_dataframe=ta_df,
+                    source_cols=["project_stage"],
+                    download_label_base="project_stages",
+                    figure_title="Project Stages",
+                )
             with col2:
-                if 'call' in ta_df.columns:
-                    call_counts = ta_df['call'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('call' in _df.columns):
+                        return None
+                    call_counts = _df['call'].value_counts().to_dict()
                     call_data = pd.DataFrame(list(call_counts.items()), columns=['Call', 'Count']).sort_values('Call')
                     fig_calls = create_professional_bar_chart(call_data, 'Call', 'Count',
                                                               'Applications by Call',
                                                               orientation='v',
                                                               color_palette=COLORS['blue_palette'])
-                    render_in_year_tabs(
-                        fig_calls,
-                        figure_key="applications_by_call",
-                        source_cols=["call"],
-                        access_type="TA",
-                        download_label_base="applications_by_call",
-                        figure_title="Applications By Call",
-                    )
+                    return fig_calls
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="applications_by_call",
+                    ta_dataframe=ta_df,
+                    source_cols=["call"],
+                    download_label_base="applications_by_call",
+                    figure_title="Applications By Call",
+                )
         else:
             st.warning("No Transnational Access data available")
 
@@ -2156,135 +2423,159 @@ elif selected == "Analytics":
         if va_df is not None and not va_df.empty:
             va_stats = compute_va_statistics(va_df)
             
-            st.markdown("## 🎯 Implementation Level 1")
+            st.markdown("## Implementation Level 1")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'service_running' in va_stats:
-                    running_data = pd.DataFrame(list(va_stats['service_running'].items()), columns=['Status', 'Count'])
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('service_running' in _stats):
+                        return None
+                    running_data = pd.DataFrame(list(_stats['service_running'].items()), columns=['Status', 'Count'])
                     color_map = {'Yes': COLORS['yes'], 'No': COLORS['no'], 'N/A': COLORS['unknown']}
                     fig_running = create_professional_donut_chart(running_data, 'Status', 'Count',
                                                                  'Service Running Status',
                                                                  color_map=color_map)
-                    render_in_year_tabs(
-                        fig_running,
-                        figure_key="service_running",
-                        source_cols=["service_running"],
-                        access_type="VA",
-                        download_label_base="service_running",
-                        figure_title="Service Running",
-                    )
+                    return fig_running
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="service_running",
+                    source_cols=["service_running"],
+                    access_type="VA",
+                    download_label_base="service_running",
+                    figure_title="Service Running",
+                )
             st.markdown("---")
             
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'api_standard' in va_df.columns:
-                    api_counts = va_df['api_standard'].value_counts().head(8).to_dict()
+                def _builder(_df, _yr):
+                    if not ('api_standard' in _df.columns):
+                        return None
+                    api_counts = _df['api_standard'].value_counts().head(8).to_dict()
                     api_data = pd.DataFrame(list(api_counts.items()), columns=['Standard', 'Count']).sort_values('Count', ascending=False)
                     fig_api = create_professional_bar_chart(api_data, 'Standard', 'Count',
                                                            'API Standards Distribution',
                                                            orientation='v',
                                                            color_palette=COLORS['blue_palette'])
-                    render_in_year_tabs(
-                        fig_api,
-                        figure_key="api_standards",
-                        source_cols=["api_standard"],
-                        access_type="VA",
-                        download_label_base="api_standards",
-                        figure_title="Api Standards",
-                    )
+                    return fig_api
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="api_standards",
+                    source_cols=["api_standard"],
+                    access_type="VA",
+                    download_label_base="api_standards",
+                    figure_title="Api Standards",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'metadata_standard' in va_df.columns:
-                    meta_counts = va_df['metadata_standard'].value_counts().head(6).to_dict()
+                def _builder(_df, _yr):
+                    if not ('metadata_standard' in _df.columns):
+                        return None
+                    meta_counts = _df['metadata_standard'].value_counts().head(6).to_dict()
                     meta_data = pd.DataFrame(list(meta_counts.items()), columns=['Standard', 'Count']).sort_values('Count', ascending=False)
                     fig_meta = create_professional_pie_chart(meta_data, 'Standard', 'Count',
                                                             'Metadata Standards')
-                    render_in_year_tabs(
-                        fig_meta,
-                        figure_key="metadata_standards",
-                        source_cols=["metadata_standard"],
-                        access_type="VA",
-                        download_label_base="metadata_standards",
-                        figure_title="Metadata Standards",
-                    )
+                    return fig_meta
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="metadata_standards",
+                    source_cols=["metadata_standard"],
+                    access_type="VA",
+                    download_label_base="metadata_standards",
+                    figure_title="Metadata Standards",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## 🚀 Implementation Level 2")
+            st.markdown("## Implementation Level 2")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'parametrization' in va_stats:
-                    param_data = pd.DataFrame(list(va_stats['parametrization'].items()), columns=['Status', 'Count'])
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('parametrization' in _stats):
+                        return None
+                    param_data = pd.DataFrame(list(_stats['parametrization'].items()), columns=['Status', 'Count'])
                     color_map = {'Yes': COLORS['yes'], 'No': COLORS['no'], 'N/A': COLORS['unknown']}
                     fig_param = create_professional_donut_chart(param_data, 'Status', 'Count',
                                                                'Service Parametrization',
                                                                color_map=color_map)
-                    render_in_year_tabs(
-                        fig_param,
-                        figure_key="parametrization",
-                        source_cols=["parametrization"],
-                        access_type="VA",
-                        download_label_base="parametrization",
-                        figure_title="Parametrization",
-                    )
+                    return fig_param
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="parametrization",
+                    source_cols=["parametrization"],
+                    access_type="VA",
+                    download_label_base="parametrization",
+                    figure_title="Parametrization",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'license' in va_df.columns:
-                    license_counts = va_df['license'].value_counts().head(6).to_dict()
+                def _builder(_df, _yr):
+                    if not ('license' in _df.columns):
+                        return None
+                    license_counts = _df['license'].value_counts().head(6).to_dict()
                     license_data = pd.DataFrame(list(license_counts.items()), columns=['License', 'Count']).sort_values('Count', ascending=False)
                     fig_license = create_professional_pie_chart(license_data, 'License', 'Count',
                                                                 'License Distribution')
-                    render_in_year_tabs(
-                        fig_license,
-                        figure_key="license_types",
-                        source_cols=["license"],
-                        access_type="VA",
-                        download_label_base="license_types",
-                        figure_title="License Types",
-                    )
+                    return fig_license
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="license_types",
+                    source_cols=["license"],
+                    access_type="VA",
+                    download_label_base="license_types",
+                    figure_title="License Types",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'fully_described' in va_stats:
-                    desc_data = pd.DataFrame(list(va_stats['fully_described'].items()), columns=['Status', 'Count'])
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('fully_described' in _stats):
+                        return None
+                    desc_data = pd.DataFrame(list(_stats['fully_described'].items()), columns=['Status', 'Count'])
                     color_map = {'Yes': COLORS['yes'], 'No': COLORS['no'], 'N/A': COLORS['unknown']}
                     fig_desc = create_professional_donut_chart(desc_data, 'Status', 'Count',
                                                               'Full Description Status',
                                                               color_map=color_map)
-                    render_in_year_tabs(
-                        fig_desc,
-                        figure_key="fully_described",
-                        source_cols=["fully_described"],
-                        access_type="VA",
-                        download_label_base="fully_described",
-                        figure_title="Fully Described",
-                    )
+                    return fig_desc
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="fully_described",
+                    source_cols=["fully_described"],
+                    access_type="VA",
+                    download_label_base="fully_described",
+                    figure_title="Fully Described",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("## 🚀 Implementation Level 3")
+            st.markdown("## Implementation Level 3")
             st.markdown("---")
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'documentation' in va_stats:
-                    doc_data = pd.DataFrame(list(va_stats['documentation'].items()), columns=['Status', 'Count']).sort_values('Count', ascending=False)
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('documentation' in _stats):
+                        return None
+                    doc_data = pd.DataFrame(list(_stats['documentation'].items()), columns=['Status', 'Count']).sort_values('Count', ascending=False)
                     color_map = {
                         'Implemented': COLORS['implemented'],
                         'Partly implemented': COLORS['partly_implemented'],
@@ -2296,67 +2587,80 @@ elif selected == "Analytics":
                                                            'Documentation Status',
                                                            orientation='v',
                                                            color_palette=[color_map.get(s, COLORS['info']) for s in doc_data['Status']])
-                    render_in_year_tabs(
-                        fig_doc,
-                        figure_key="documentation",
-                        source_cols=["documentation_status"],
-                        access_type="VA",
-                        download_label_base="documentation",
-                        figure_title="Documentation",
-                    )
+                    return fig_doc
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="documentation",
+                    source_cols=["documentation_status"],
+                    access_type="VA",
+                    download_label_base="documentation",
+                    figure_title="Documentation",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'payloads' in va_stats:
-                    payload_data = pd.DataFrame(list(va_stats['payloads'].items()), columns=['Status', 'Count'])
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('payloads' in _stats):
+                        return None
+                    payload_data = pd.DataFrame(list(_stats['payloads'].items()), columns=['Status', 'Count'])
                     color_map = {'Yes': COLORS['yes'], 'No': COLORS['no'], 'N/A': COLORS['unknown']}
                     fig_payload = create_professional_donut_chart(payload_data, 'Status', 'Count',
                                                                  'Payload Support',
                                                                  color_map=color_map)
-                    render_in_year_tabs(
-                        fig_payload,
-                        figure_key="payloads",
-                        source_cols=["payloads"],
-                        access_type="VA",
-                        download_label_base="payloads",
-                        figure_title="Payloads",
-                    )
+                    return fig_payload
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="payloads",
+                    source_cols=["payloads"],
+                    access_type="VA",
+                    download_label_base="payloads",
+                    figure_title="Payloads",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col3:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'auth' in va_stats:
-                    auth_data = pd.DataFrame(list(va_stats['auth'].items()), columns=['Method', 'Count']).sort_values('Count', ascending=False)
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('auth' in _stats):
+                        return None
+                    auth_data = pd.DataFrame(list(_stats['auth'].items()), columns=['Method', 'Count']).sort_values('Count', ascending=False)
                     fig_auth = create_professional_pie_chart(auth_data, 'Method', 'Count',
                                                             'Authentication Methods')
-                    render_in_year_tabs(
-                        fig_auth,
-                        figure_key="authentication",
-                        source_cols=["auth_method"],
-                        access_type="VA",
-                        download_label_base="authentication",
-                        figure_title="Authentication",
-                    )
+                    return fig_auth
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="authentication",
+                    source_cols=["auth_method"],
+                    access_type="VA",
+                    download_label_base="authentication",
+                    figure_title="Authentication",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'converter' in va_stats:
-                    conv_data = pd.DataFrame(list(va_stats['converter'].items()), columns=['Status', 'Count'])
+                def _builder(_df, _yr):
+                    _stats = compute_va_statistics(_df)
+                    if not ('converter' in _stats):
+                        return None
+                    conv_data = pd.DataFrame(list(_stats['converter'].items()), columns=['Status', 'Count'])
                     color_map = {'Yes': COLORS['yes'], 'No': COLORS['no'], 'N/A': COLORS['unknown']}
                     fig_conv = create_professional_donut_chart(conv_data, 'Status', 'Count',
                                                               'Converter Plugin Availability',
                                                               color_map=color_map)
-                    render_in_year_tabs(
-                        fig_conv,
-                        figure_key="converter",
-                        source_cols=["converter_plugin"],
-                        access_type="VA",
-                        download_label_base="converter",
-                        figure_title="Converter",
-                    )
+                    return fig_conv
+                render_in_year_tabs(
+                    _builder,
+                    figure_key="converter",
+                    source_cols=["converter_plugin"],
+                    access_type="VA",
+                    download_label_base="converter",
+                    figure_title="Converter",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Virtual Access data available")
@@ -2364,7 +2668,7 @@ elif selected == "Analytics":
     else:
         # ENHANCED TA ANALYTICS with 10+ charts
         if ta_df is not None and not ta_df.empty:
-            st.markdown("## 📊 Comprehensive Transnational Access Analytics")
+            st.markdown("## Comprehensive Transnational Access Analytics")
             st.markdown("---")
             
             # Row 1
@@ -2372,40 +2676,46 @@ elif selected == "Analytics":
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'pi_gender' in ta_df.columns:
-                    gender_counts = ta_df['pi_gender'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('pi_gender' in _df.columns):
+                        return None
+                    gender_counts = _df['pi_gender'].value_counts().to_dict()
                     gender_data = pd.DataFrame(list(gender_counts.items()), columns=['Gender', 'Count'])
-                    color_map = {'Female': '#E74C3C', 'Male': '#3498DB', 'Other': '#95A5A6'}
+                    color_map = {'Female': COLORS['danger'], 'Male': COLORS['accent'], 'Other': COLORS['unknown']}
                     fig_gender = create_professional_pie_chart(gender_data, 'Gender', 'Count',
                                                               'Principal Investigator Gender Distribution',
                                                               color_map=color_map)
-                    render_in_year_tabs(
-                        fig_gender,
-                        figure_key="ta_gender_distribution",
-                        source_cols=["pi_gender"],
-                        access_type="TA",
-                        download_label_base="ta_gender_distribution",
-                        figure_title="Gender Distribution",
-                    )
+                    return fig_gender
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_gender_distribution",
+                    ta_dataframe=ta_df,
+                    source_cols=["pi_gender"],
+                    download_label_base="ta_gender_distribution",
+                    figure_title="Gender Distribution",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'ta_host' in ta_df.columns:
-                    host_counts = ta_df['ta_host'].value_counts().head(10).to_dict()
+                def _builder(_df, _yr):
+                    if not ('ta_host' in _df.columns):
+                        return None
+                    host_counts = _df['ta_host'].value_counts().head(10).to_dict()
                     host_data = pd.DataFrame(list(host_counts.items()), columns=['Host', 'Count']).sort_values('Count', ascending=True)
                     fig_host = create_professional_bar_chart(host_data, 'Count', 'Host',
                                                             'Top 10 TA Host Distribution',
                                                             orientation='h',
                                                             color_palette=COLORS['green_palette'])
-                    render_in_year_tabs(
-                        fig_host,
-                        figure_key="ta_host_distribution",
-                        source_cols=["ta_host"],
-                        access_type="TA",
-                        download_label_base="ta_host_distribution",
-                        figure_title="Host Distribution",
-                    )
+                    return fig_host
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_host_distribution",
+                    ta_dataframe=ta_df,
+                    source_cols=["ta_host"],
+                    download_label_base="ta_host_distribution",
+                    figure_title="Host Distribution",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
@@ -2415,50 +2725,58 @@ elif selected == "Analytics":
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'unit_of_access' in ta_df.columns:
-                    unit_counts = ta_df['unit_of_access'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('unit_of_access' in _df.columns):
+                        return None
+                    unit_counts = _df['unit_of_access'].value_counts().to_dict()
                     unit_data = pd.DataFrame(list(unit_counts.items()), columns=['Unit', 'Count'])
                     fig_unit = create_professional_pie_chart(unit_data, 'Unit', 'Count',
                                                             'Access Unit Types')
-                    render_in_year_tabs(
-                        fig_unit,
-                        figure_key="ta_access_units",
-                        source_cols=["unit_of_access"],
-                        access_type="TA",
-                        download_label_base="ta_access_units",
-                        figure_title="Access Units",
-                    )
+                    return fig_unit
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_access_units",
+                    ta_dataframe=ta_df,
+                    source_cols=["unit_of_access"],
+                    download_label_base="ta_access_units",
+                    figure_title="Access Units",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'number_of_users' in ta_df.columns:
-                    user_counts = ta_df['number_of_users'].value_counts().head(8).to_dict()
+                def _builder(_df, _yr):
+                    if not ('number_of_users' in _df.columns):
+                        return None
+                    user_counts = _df['number_of_users'].value_counts().head(8).to_dict()
                     user_data = pd.DataFrame(list(user_counts.items()), columns=['Users', 'Count']).sort_values('Users')
                     fig_users = create_professional_bar_chart(user_data, 'Users', 'Count',
                                                              'Number of Users Distribution',
                                                              orientation='v',
                                                              color_palette=['#8E44AD'] * len(user_data))
-                    render_in_year_tabs(
-                        fig_users,
-                        figure_key="ta_number_of_users",
-                        source_cols=["number_of_users"],
-                        access_type="TA",
-                        download_label_base="ta_number_of_users",
-                        figure_title="Number Of Users",
-                    )
+                    return fig_users
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_number_of_users",
+                    ta_dataframe=ta_df,
+                    source_cols=["number_of_users"],
+                    download_label_base="ta_number_of_users",
+                    figure_title="Number Of Users",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 3: Call-Based Analysis
-            st.markdown("### 📊 Call-Based Analysis")
+            st.markdown("### Call-Based Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'call' in ta_df.columns and 'pi_gender' in ta_df.columns:
-                    call_gender = ta_df.groupby(['call', 'pi_gender']).size().reset_index(name='count')
+                def _builder(_df, _yr):
+                    if not ('call' in _df.columns and 'pi_gender' in _df.columns):
+                        return None
+                    call_gender = _df.groupby(['call', 'pi_gender']).size().reset_index(name='count')
                     fig_call_gender = px.bar(
                         call_gender,
                         x='call',
@@ -2466,7 +2784,7 @@ elif selected == "Analytics":
                         color='pi_gender',
                         title='Gender Distribution by Call',
                         labels={'count': 'Number of Applications', 'call': 'Call', 'pi_gender': 'Gender'},
-                        color_discrete_map={'Female': '#E74C3C', 'Male': '#3498DB', 'Other': '#95A5A6'},
+                        color_discrete_map={'Female': COLORS['danger'], 'Male': COLORS['accent'], 'Other': COLORS['unknown']},
                         height=400
                     )
                     fig_call_gender.update_layout(
@@ -2475,21 +2793,24 @@ elif selected == "Analytics":
                         legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
                         margin=dict(l=60, r=60, t=60, b=100)
                     )
-                    render_in_year_tabs(
-                        fig_call_gender,
-                        figure_key="ta_call_gender",
-                        source_cols=["call", "pi_gender"],
-                        access_type="TA",
-                        download_label_base="ta_call_gender",
-                        figure_title="Call Gender",
-                    )
+                    return fig_call_gender
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_call_gender",
+                    ta_dataframe=ta_df,
+                    source_cols=["call", "pi_gender"],
+                    download_label_base="ta_call_gender",
+                    figure_title="Call Gender",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'call' in ta_df.columns and 'ta_host' in ta_df.columns:
-                    top_hosts = ta_df['ta_host'].value_counts().head(5).index
-                    call_host_filtered = ta_df[ta_df['ta_host'].isin(top_hosts)]
+                def _builder(_df, _yr):
+                    if not ('call' in _df.columns and 'ta_host' in _df.columns):
+                        return None
+                    top_hosts = _df['ta_host'].value_counts().head(5).index
+                    call_host_filtered = _df[_df['ta_host'].isin(top_hosts)]
                     call_host = call_host_filtered.groupby(['call', 'ta_host']).size().reset_index(name='count')
                     
                     fig_call_host = px.bar(
@@ -2507,27 +2828,30 @@ elif selected == "Analytics":
                         legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, font=dict(size=10)),
                         margin=dict(l=60, r=60, t=60, b=120)
                     )
-                    render_in_year_tabs(
-                        fig_call_host,
-                        figure_key="ta_call_host",
-                        source_cols=["call", "ta_host"],
-                        access_type="TA",
-                        download_label_base="ta_call_host",
-                        figure_title="Call Host",
-                    )
+                    return fig_call_host
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_call_host",
+                    ta_dataframe=ta_df,
+                    source_cols=["call", "ta_host"],
+                    download_label_base="ta_call_host",
+                    figure_title="Call Host",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 4: Temporal Analysis
-            st.markdown("### 📊 Temporal Analysis")
+            st.markdown("### Temporal Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
                 if 'visit_start' in ta_df.columns:
                     ta_temporal = ta_df[ta_df['visit_start'].notna()].copy()
-                    if not ta_temporal.empty:
+                    def _builder(_df, _yr):
+                        if not (not ta_temporal.empty):
+                            return None
                         ta_temporal['visit_start_date'] = pd.to_datetime(ta_temporal['visit_start'], errors='coerce')
                         ta_temporal['month_year'] = ta_temporal['visit_start_date'].dt.to_period('M').astype(str)
                         
@@ -2560,14 +2884,15 @@ elif selected == "Analytics":
                             paper_bgcolor='white'
                         )
                         
-                        render_in_year_tabs(
-                            fig_monthly,
-                            figure_key="ta_monthly_distribution",
-                            source_cols=["visit_start"],
-                            access_type="TA",
-                            download_label_base="ta_monthly_distribution",
-                            figure_title="Monthly Distribution",
-                        )
+                        return fig_monthly
+                    render_in_call_tabs(
+                        _builder,
+                        figure_key="ta_monthly_distribution",
+                        ta_dataframe=ta_df,
+                        source_cols=["visit_start"],
+                        download_label_base="ta_monthly_distribution",
+                        figure_title="Monthly Distribution",
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
@@ -2579,7 +2904,9 @@ elif selected == "Analytics":
                         units_comparison['units_used'] = pd.to_numeric(units_comparison['units_used'], errors='coerce')
                         units_comparison = units_comparison.dropna(subset=['units_requested', 'units_used'])
                         
-                        if not units_comparison.empty:
+                        def _builder(_df, _yr):
+                            if not (not units_comparison.empty):
+                                return None
                             fig_units = go.Figure()
                             fig_units.add_trace(go.Bar(
                                 name='Requested',
@@ -2606,26 +2933,29 @@ elif selected == "Analytics":
                                 margin=dict(l=60, r=60, t=60, b=80)
                             )
                             
-                            render_in_year_tabs(
-                                fig_units,
-                                figure_key="ta_units_comparison",
-                                source_cols=["units_requested", "units_used"],
-                                access_type="TA",
-                                download_label_base="ta_units_comparison",
-                                figure_title="Units Comparison",
-                            )
+                            return fig_units
+                        render_in_call_tabs(
+                            _builder,
+                            figure_key="ta_units_comparison",
+                            ta_dataframe=ta_df,
+                            source_cols=["units_requested", "units_used"],
+                            download_label_base="ta_units_comparison",
+                            figure_title="Units Comparison",
+                        )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Row 5: Geographic/Institutional
-            st.markdown("### 🌎 Geographic and Institutional Analysis")
+            st.markdown("### Geographic and Institutional Analysis")
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'pi_affiliation' in ta_df.columns:
-                    affil_counts = ta_df['pi_affiliation'].value_counts().head(10)
+                def _builder(_df, _yr):
+                    if not ('pi_affiliation' in _df.columns):
+                        return None
+                    affil_counts = _df['pi_affiliation'].value_counts().head(10)
                     affil_data = pd.DataFrame({
                         'Institution': affil_counts.index,
                         'Applications': affil_counts.values
@@ -2635,498 +2965,311 @@ elif selected == "Analytics":
                         affil_data, 'Applications', 'Institution',
                         'Top 10 PI Institutions',
                         orientation='h',
-                        color_palette=['#F39C12'] * len(affil_data)
+                        color_palette=[COLORS['warning']] * len(affil_data)
                     )
-                    render_in_year_tabs(
-                        fig_affil,
-                        figure_key="ta_top_institutions",
-                        source_cols=["pi_affiliation"],
-                        access_type="TA",
-                        download_label_base="ta_top_institutions",
-                        figure_title="Top Institutions",
-                    )
+                    return fig_affil
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_top_institutions",
+                    ta_dataframe=ta_df,
+                    source_cols=["pi_affiliation"],
+                    download_label_base="ta_top_institutions",
+                    figure_title="Top Institutions",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with col2:
                 st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                if 'associated_wp' in ta_df.columns:
-                    wp_counts = ta_df['associated_wp'].value_counts().to_dict()
+                def _builder(_df, _yr):
+                    if not ('associated_wp' in _df.columns):
+                        return None
+                    wp_counts = _df['associated_wp'].value_counts().to_dict()
                     wp_data = pd.DataFrame(list(wp_counts.items()), columns=['Work Package', 'Count'])
                     fig_wp = create_professional_pie_chart(wp_data, 'Work Package', 'Count',
                                                            'Associated Work Packages')
-                    render_in_year_tabs(
-                        fig_wp,
-                        figure_key="ta_work_packages",
-                        source_cols=["associated_wp"],
-                        access_type="TA",
-                        download_label_base="ta_work_packages",
-                        figure_title="Work Packages",
-                    )
+                    return fig_wp
+                render_in_call_tabs(
+                    _builder,
+                    figure_key="ta_work_packages",
+                    ta_dataframe=ta_df,
+                    source_cols=["associated_wp"],
+                    download_label_base="ta_work_packages",
+                    figure_title="Work Packages",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Transnational Access data available")
 
 elif selected == "KPI":
-    st.title("🎯 Key Performance Indicators (KPI)")
-    st.markdown("---")
-    
-    if project_label == "Virtual Access":
-        # ==================== VIRTUAL ACCESS KPI - FULL IMPLEMENTATION ====================
-        st.header("### 📊 Virtual Access KPIs")
-        
-        # Load raw data to access KPI columns by index. The KPI section talks
-        # directly to Google Sheets so it can read raw cell values by column
-        # position (avoids the renamings that load_google_sheets_data applies).
-        try:
-            scope = ["https://spreadsheets.google.com/feeds",
-                     "https://www.googleapis.com/auth/drive"]
+    # =========================================================================
+    # KPI PAGE — intentionally a clean placeholder for now.
+    #
+    # The KPI framework is being defined in the context of the Geo-INQUIRE
+    # reporting obligations (TRL progression, test users, datasets served, …).
+    # Rather than ship half-finished charts, this page shows a clear
+    # "under development" state.  When the indicator set is finalised, replace
+    # the placeholder block below with the real KPI computations.
+    # =========================================================================
+    st.markdown("<span class='small'>Home → KPI</span>", unsafe_allow_html=True)
+    st.header("Key Performance Indicators")
+    st.caption(f"Project context: {project_label}")
 
-            # Same dual-path auth as the main loader: try Streamlit Cloud
-            # secrets first, fall back silently to the local JSON. Touching
-            # `st.secrets` when no secrets.toml exists raises, so we wrap the
-            # lookup in its own try/except to keep the page clean.
-            try:
-                secrets_has_gcp = ("gcp_service_account" in st.secrets)
-            except Exception:
-                secrets_has_gcp = False
-
-            if secrets_has_gcp:
-                creds_dict = dict(st.secrets["gcp_service_account"])
-                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            else:
-                json_keyfile_path = GOOGLE_CREDS_FILE
-                if not os.path.exists(json_keyfile_path):
-                    # Fail quietly — the KPI section can't render without a
-                    # live Google Sheets connection, but we surface a single
-                    # informational message instead of multiple red errors.
-                    st.info(
-                        "ℹ️ KPI charts require a live Google Sheets connection. "
-                        "Add `valiant-splicer-409609-e34abed30cc1.json` locally, "
-                        "or configure `gcp_service_account` in Streamlit Cloud "
-                        "secrets, to see this page."
-                    )
-                    raise Exception("Credentials missing")
-                creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
-
-            client = gspread.authorize(creds)
-            spreadsheet = client.open_by_url(GOOGLE_SHEET_URL)
-            worksheet_va = spreadsheet.worksheet("ILM_Connector")
-            data_va = worksheet_va.get_all_values()
-            df_raw = pd.DataFrame(data_va[4:], columns=data_va[3])
-            
-                        # ==================== IMPROVED KPI CODE ====================
-
-            # ==================== KPI 1: USAGE LOGGING SYSTEM (UPDATED) ====================
-            # Column 35 (AJ): Does your installation have Usage Logging system in place?
-            # Values: YES, NO, Partially, In progress
-            col_35 = df_raw.iloc[:, 35]  # Usage Logging
-
-            st.subheader("KPI-1: Usage Logging System")
-            st.caption("Tracks installations with active usage logging capabilities")
-
-            # Calculate usage logging statistics (handles all 4 categories)
-            usage_logging_counts = col_35.value_counts()
-
-            # Normalize different case variations
-            yes_count = (
-                usage_logging_counts.get('YES', 0) + 
-                usage_logging_counts.get('yes', 0) + 
-                usage_logging_counts.get('Yes', 0)
-            )
-            no_count = (
-                usage_logging_counts.get('NO', 0) + 
-                usage_logging_counts.get('no', 0) + 
-                usage_logging_counts.get('No', 0)
-            )
-            partially_count = (
-                usage_logging_counts.get('Partially', 0) + 
-                usage_logging_counts.get('partially', 0) + 
-                usage_logging_counts.get('PARTIALLY', 0)
-            )
-            in_progress_count = (
-                usage_logging_counts.get('In progress', 0) + 
-                usage_logging_counts.get('in progress', 0) + 
-                usage_logging_counts.get('IN PROGRESS', 0)
-            )
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Display metrics
-                total_installations = len(col_35.dropna())
-    
-                st.metric("Total Installations", total_installations)
-    
-                # Show all 4 categories
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.metric("✅ Fully Implemented", yes_count, 
-                             delta=f"{yes_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("🟡 Partially", partially_count,
-                             delta=f"{partially_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                with col_b:
-                    st.metric("🔄 In Progress", in_progress_count,
-                             delta=f"{in_progress_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-                    st.metric("❌ Not Implemented", no_count,
-                             delta=f"{no_count/total_installations*100:.1f}%" if total_installations > 0 else "N/A")
-
-            with col2:
-                # Create enhanced pie chart with 4 categories
-                labels = ['Fully Implemented', 'In Progress', 'Partially', 'Not Implemented']
-                values = [yes_count, in_progress_count, partially_count, no_count]
-                colors = [COLORS['success'], COLORS['info'], COLORS['warning'], COLORS['danger']]
-    
-                fig = go.Figure(data=[go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.4,
-                    marker=dict(colors=colors),
-                    textfont=dict(size=14, family=FONT_FAMILY),
-                    textinfo='label+percent',
-                    hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
-                )])
-    
-                fig.update_layout(
-                    title=dict(
-                        text="<b>Usage Logging System Distribution</b>",
-                        font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
-                    ),
-                    height=400,
-                    showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                    font=dict(family=FONT_FAMILY)
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                st.markdown(
-                    '<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0;">'
-                    'Source column: Column AJ – Does your installation have Usage Logging system in place?</p>',
-                    unsafe_allow_html=True
-                )
-
-            # Summary text
-            implementation_rate = ((yes_count + partially_count) / total_installations * 100) if total_installations > 0 else 0
-            st.caption(f"📊 **Implementation Rate:** {implementation_rate:.1f}% of installations have usage logging (fully or partially implemented)")
-
-            st.markdown("---")
-
-            # ==================== KPI 2: ACCESSIBLE DATASETS ====================
-            # Column 37: Total data items/records
-            # Column 39 (AN): Datasets at start or current datasets
-            # Column 40 (AO): New datasets or volume
-            st.subheader("📚 KPI-2: Accessible Datasets")
-            st.caption("Tracks the number of datasets and data records available through installations")
-
-            col_37 = df_raw.iloc[:, 37]  # Total data items/records
-            col_39 = df_raw.iloc[:, 39]  # Datasets (seems to be at start or total)
-            col_40 = df_raw.iloc[:, 40]  # New datasets or additional info
-
-            # Convert to numeric
-            data_items = pd.to_numeric(col_37, errors='coerce').dropna()
-            datasets_col_39 = pd.to_numeric(col_39, errors='coerce').dropna()
-            datasets_col_40 = pd.to_numeric(col_40, errors='coerce').dropna()
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Display dataset metrics
-                st.markdown("**Dataset Statistics:**")
-    
-                if len(data_items) > 0:
-                    st.metric("🗂️ Total Data Items/Records", f"{int(data_items.sum()):,}",
-                             help="Total number of individual data records across all installations")
-                    st.metric("📊 Average per Installation", f"{data_items.mean():.0f}",
-                             help="Average data items per installation")
-    
-                if len(datasets_col_39) > 0:
-                    st.metric("📚 Total Datasets Available", f"{int(datasets_col_39.sum()):,}",
-                             help="Total number of distinct datasets")
-                    st.metric("📈 Average Datasets/Installation", f"{datasets_col_39.mean():.1f}")
-
-            with col2:
-                # Create bar chart comparing installations
-                if len(data_items) > 0:
-                    # Top 10 installations by data items
-                    top_installations = data_items.nlargest(10)
-        
-                    fig = go.Figure(data=[go.Bar(
-                        x=[f"Installation {i+1}" for i in range(len(top_installations))],
-                        y=top_installations.values,
-                        marker=dict(color=COLORS['accent'], line=dict(color='white', width=1)),
-                        text=[f"{int(v):,}" for v in top_installations.values],
-                        textposition='outside',
-                        textfont=dict(size=10, family=FONT_FAMILY)
-                    )])
-        
-                    fig.update_layout(
-                        title=dict(
-                            text="<b>Top 10 Installations by Data Items</b>",
-                            font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
-                        ),
-                        xaxis_title="<b>Installation</b>",
-                        yaxis_title="<b>Number of Data Items</b>",
-                        height=400,
-                        showlegend=False,
-                        font=dict(family=FONT_FAMILY),
-                        yaxis=dict(type='log')  # Log scale for better visualization
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.markdown(
-                        '<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0;">'
-                        'Source columns: Col AL – Total data items/records | Col AN – Datasets</p>',
-                        unsafe_allow_html=True
-                    )
-
-            # Additional visualization: Distribution of datasets
-            if len(datasets_col_39) > 0:
-                st.markdown("---")
-                st.markdown("**Dataset Distribution Analysis:**")
-    
-                col1, col2 = st.columns(2)
-    
-                with col1:
-                    # Histogram of dataset counts
-                    fig = go.Figure(data=[go.Histogram(
-                        x=datasets_col_39,
-                        nbinsx=20,
-                        marker=dict(color=COLORS['blue_palette'][2], line=dict(color='white', width=1)),
-                        name='Installations'
-                    )])
-        
-                    fig.update_layout(
-                        title=dict(
-                            text="<b>Distribution of Dataset Counts</b>",
-                            font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
-                        ),
-                        xaxis_title="<b>Number of Datasets</b>",
-                        yaxis_title="<b>Number of Installations</b>",
-                        height=350,
-                        showlegend=False,
-                        font=dict(family=FONT_FAMILY)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-    
-                with col2:
-                    # Box plot showing dataset distribution
-                    fig = go.Figure(data=[go.Box(
-                        y=datasets_col_39,
-                        marker=dict(color=COLORS['success']),
-                        name='Dataset Count',
-                        boxmean='sd'  # Show mean and standard deviation
-                    )])
-        
-                    fig.update_layout(
-                        title=dict(
-                            text="<b>Dataset Count Statistics</b>",
-                            font=dict(size=TITLE_FONT_SIZE, family=FONT_FAMILY)
-                        ),
-                        yaxis_title="<b>Number of Datasets</b>",
-                        height=350,
-                        showlegend=False,
-                        font=dict(family=FONT_FAMILY)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-
-            # Summary metrics table
-            st.markdown("---")
-            st.subheader("📊 KPI Summary Table")
-
-            kpi_summary = pd.DataFrame({
-                'KPI Metric': [
-                    'Usage Logging - Fully Implemented',
-                    'Usage Logging - In Progress',
-                    'Usage Logging - Partially',
-                    'Usage Logging - Not Implemented',
-                    'Total Data Items/Records',
-                    'Total Datasets Available',
-                    'Installations with Data',
-                    'Average Datasets per Installation'
-                ],
-                'Value': [
-                    f"{yes_count} ({yes_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
-                    f"{in_progress_count} ({in_progress_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
-                    f"{partially_count} ({partially_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
-                    f"{no_count} ({no_count/total_installations*100:.1f}%)" if total_installations > 0 else "N/A",
-                    f"{int(data_items.sum()):,}" if len(data_items) > 0 else "N/A",
-                    f"{int(datasets_col_39.sum()):,}" if len(datasets_col_39) > 0 else "N/A",
-                    f"{len(data_items)}" if len(data_items) > 0 else "N/A",
-                    f"{datasets_col_39.mean():.1f}" if len(datasets_col_39) > 0 else "N/A"
-                ]
-            })
-
-            st.dataframe(kpi_summary, use_container_width=True, hide_index=True)
-
-        except Exception as e:
-            st.error(f"Error loading KPI data: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
-
-    else:  # Transnational Access
-        # ==================== TRANSNATIONAL ACCESS KPI - UNDER DEVELOPMENT ====================
-        st.info("🚧 This section is currently under development. KPI metrics and visualizations will be available soon.")
-        
-        # Show preview of coming features
-        st.subheader("📊 Coming Soon:")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #3498DB;">
-                <h4>Project Metrics</h4>
-                <ul>
-                    <li>Project Completion Rates</li>
-                    <li>Visit/Access Statistics</li>
-                    <li>Host Distribution</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #27AE60;">
-                <h4>User Metrics</h4>
-                <ul>
-                    <li>Total Users by Call</li>
-                    <li>Gender Distribution</li>
-                    <li>Affiliation Analysis</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown("""
-            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px; border-left: 4px solid #F39C12;">
-                <h4>Outcomes</h4>
-                <ul>
-                    <li>Expected vs Delivered Assets</li>
-                    <li>Integration Strategies</li>
-                    <li>Quality Indicators</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.caption("Check back soon for detailed KPI analytics and visualizations for Transnational Access!")
-
-
-
-# ===============================================================================================
-# =================================== DATA SECTION ============================================
-# ===============================================================================================
-# The Data tab displays the RAW source data for both Virtual Access and Transnational
-# Access using the EXACT same column-header structure as the source Excel file:
-# rows 1–4 of the spreadsheet form a 4-row hierarchical header (group band → topic
-# → criteria → column name).  We build a `pandas.MultiIndex` from these four rows
-# via the `build_four_row_header()` helper defined near the top of this file and
-# attach it to the raw frame (`va_raw` / `ta_raw`).  Users can also download the
-# data as a CSV with the original column names.
-# ===============================================================================================
+    # Centred "under development" card.
+    st.markdown("""
+    <div style="margin-top:2.5rem; padding:3rem 2rem; border-radius:16px;
+                background:linear-gradient(135deg,#f8fafc 0%,#eef2f6 100%);
+                border:1px solid #e2e8f0; text-align:center;">
+        <div style="font-size:0.8rem; font-weight:700; letter-spacing:1.5px;
+                    text-transform:uppercase; color:#2563eb; margin-bottom:0.8rem;">
+            Under Development
+        </div>
+        <div style="font-size:1.6rem; font-weight:800; color:#1f3a5f; margin-bottom:0.6rem;">
+            KPI dashboard coming soon
+        </div>
+        <div style="font-size:0.95rem; color:#64748b; max-width:620px; margin:0 auto; line-height:1.6;">
+            This section is reserved for the project's Key Performance Indicators.
+            The indicator set is being finalised against the Geo-INQUIRE reporting
+            framework. Planned indicators include:
+        </div>
+        <div style="margin-top:1.5rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+            <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                         padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                TRL progression
+            </span>
+            <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                         padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                Test users
+            </span>
+            <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                         padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                Users served
+            </span>
+            <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                         padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                Datasets accessible
+            </span>
+            <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                         padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                Service uptime
+            </span>
+        </div>
+        <div style="margin-top:2rem; font-size:0.8rem; color:#94a3b8;">
+            Indicators will be added here once the analysis is complete.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 elif selected == "Data":
     # Breadcrumb-style header line
     st.markdown("<span class='small'>Home → Data</span>", unsafe_allow_html=True)
-    st.header("Data Table")
+    st.header("Data")
 
-    # ── A short note explaining the 4-row header to anyone unfamiliar with the
-    #    Excel layout — keeps the table self-documenting. ────────────────────
-    st.caption(
-        "The header below mirrors the first four rows of the source spreadsheet: "
-        "**Group band → Topic → Criteria → Column name**, exactly as in the "
-        "Excel file `GeoINQUIRE-ImplementationLevelMatrix.xlsx`."
+    # ── Two views of the ILM data: the human-readable table (today) and a ──
+    #    reserved space for the machine-readable / API-style representation ──
+    #    the team is planning to add. ───────────────────────────────────────
+    data_tab_table, data_tab_machine = st.tabs(
+        ["Table view", "Machine-readable (in progress)"]
     )
 
-    # ---------------------------------------------------------------------------
-    # VIRTUAL ACCESS BRANCH
-    # ---------------------------------------------------------------------------
-    if project_label == "Virtual Access":
-        if va_raw is not None and not va_raw.empty:
-            # 1) Work on a copy so the source frame stays untouched between reruns.
-            va_display = va_raw.copy()
+    with data_tab_table:
+        # A short note explaining the 4-row header to anyone unfamiliar with the
+        # Excel layout — keeps the table self-documenting.
+        st.caption(
+            "The header below mirrors the first four rows of the source spreadsheet: "
+            "**Group band → Topic → Criteria → Column name**, exactly as in the "
+            "Excel file `GeoINQUIRE-ImplementationLevelMatrix.xlsx`."
+        )
 
-            # 2) De-duplicate column names that may repeat in row 4 of the sheet
-            #    (e.g. several "[0;1]" cells). Streamlit's dataframe rendering
-            #    rejects an Index with duplicates, so we suffix the duplicates
-            #    with _1, _2, ... while leaving the first occurrence intact.
-            cols = pd.Series(va_display.columns.astype(str))
-            for dup in cols[cols.duplicated()].unique():
-                dup_indices = [i for i, x in enumerate(cols) if x == dup]
-                for i, idx in enumerate(dup_indices[1:], start=1):
-                    cols[idx] = f"{dup}_{i}"
-            va_display.columns = cols
+        # ---------------------------------------------------------------------------
+        # VIRTUAL ACCESS BRANCH
+        # ---------------------------------------------------------------------------
+        if project_label == "Virtual Access":
+            if va_raw is not None and not va_raw.empty:
+                # 1) Work on a copy so the source frame stays untouched between reruns.
+                va_display = va_raw.copy()
 
-            # 3) Build the 4-row MultiIndex from rows 1–4 (`va_header4` was set
-            #    inside `load_google_sheets_data` / `load_excel_data`).  The
-            #    helper forward-fills the merged group bands so they span the
-            #    correct columns, and it gracefully handles the case where
-            #    the header rows are shorter than the data.
-            if va_header4 is not None and len(va_header4) == 4:
-                try:
-                    multi_idx = build_four_row_header(va_header4, len(va_display.columns))
-                    va_display.columns = multi_idx
-                except Exception as exc:
-                    # Fall back silently to the flat header if anything goes
-                    # wrong — the user still sees the data with single names.
-                    st.caption(f"(Could not build multi-row header: {exc})")
+                # 2) De-duplicate column names that may repeat in row 4 of the sheet
+                #    (e.g. several "[0;1]" cells). Streamlit's dataframe rendering
+                #    rejects an Index with duplicates, so we suffix the duplicates
+                #    with _1, _2, ... while leaving the first occurrence intact.
+                cols = pd.Series(va_display.columns.astype(str))
+                for dup in cols[cols.duplicated()].unique():
+                    dup_indices = [i for i, x in enumerate(cols) if x == dup]
+                    for i, idx in enumerate(dup_indices[1:], start=1):
+                        cols[idx] = f"{dup}_{i}"
+                va_display.columns = cols
 
-            # 4) Render the dataframe and offer a CSV download.
-            st.caption(f"**Virtual Access Data** — {len(va_display):,} records")
-            st.dataframe(va_display, use_container_width=True)
+                # 3) Build the 4-row MultiIndex from rows 1–4 (`va_header4` was set
+                #    inside `load_google_sheets_data` / `load_excel_data`).  The
+                #    helper forward-fills the merged group bands so they span the
+                #    correct columns, and it gracefully handles the case where
+                #    the header rows are shorter than the data.
+                if va_header4 is not None and len(va_header4) == 4:
+                    try:
+                        multi_idx = build_four_row_header(va_header4, len(va_display.columns))
+                        va_display.columns = multi_idx
+                    except Exception as exc:
+                        # Fall back silently to the flat header if anything goes
+                        # wrong — the user still sees the data with single names.
+                        st.caption(f"(Could not build multi-row header: {exc})")
 
-            # CSV download keeps the row-4 column names (last level of the
-            # MultiIndex), which is what users normally want in a spreadsheet.
-            st.download_button(
-                "📥 Download VA CSV (original column names)",
-                data=va_raw.to_csv(index=False).encode("utf-8"),
-                file_name="VA_data.csv",
-                mime="text/csv",
-                key="va_csv_download",
-            )
+                # 4) Render the dataframe and offer a CSV download.
+                st.caption(f"**Virtual Access Data** — {len(va_display):,} records")
+                st.dataframe(va_display, use_container_width=True)
+
+                # CSV download keeps the row-4 column names (last level of the
+                # MultiIndex), which is what users normally want in a spreadsheet.
+                st.download_button(
+                    "Download VA CSV (original column names)",
+                    data=va_raw.to_csv(index=False).encode("utf-8"),
+                    file_name="VA_data.csv",
+                    mime="text/csv",
+                    key="va_csv_download",
+                )
+            else:
+                st.warning("No Virtual Access data available")
+
+        # ---------------------------------------------------------------------------
+        # TRANSNATIONAL ACCESS BRANCH
+        # ---------------------------------------------------------------------------
         else:
-            st.warning("No Virtual Access data available")
+            if ta_raw is not None and not ta_raw.empty:
+                # Same pattern as the VA branch but on the TA sheet.
+                ta_display = ta_raw.copy()
 
-    # ---------------------------------------------------------------------------
-    # TRANSNATIONAL ACCESS BRANCH
-    # ---------------------------------------------------------------------------
-    else:
-        if ta_raw is not None and not ta_raw.empty:
-            # Same pattern as the VA branch but on the TA sheet.
-            ta_display = ta_raw.copy()
+                # De-duplicate columns
+                cols = pd.Series(ta_display.columns.astype(str))
+                for dup in cols[cols.duplicated()].unique():
+                    dup_indices = [i for i, x in enumerate(cols) if x == dup]
+                    for i, idx in enumerate(dup_indices[1:], start=1):
+                        cols[idx] = f"{dup}_{i}"
+                ta_display.columns = cols
 
-            # De-duplicate columns
-            cols = pd.Series(ta_display.columns.astype(str))
-            for dup in cols[cols.duplicated()].unique():
-                dup_indices = [i for i, x in enumerate(cols) if x == dup]
-                for i, idx in enumerate(dup_indices[1:], start=1):
-                    cols[idx] = f"{dup}_{i}"
-            ta_display.columns = cols
+                # Build the multi-row header for TA
+                if ta_header4 is not None and len(ta_header4) == 4:
+                    try:
+                        multi_idx = build_four_row_header(ta_header4, len(ta_display.columns))
+                        ta_display.columns = multi_idx
+                    except Exception as exc:
+                        st.caption(f"(Could not build multi-row header: {exc})")
 
-            # Build the multi-row header for TA
-            if ta_header4 is not None and len(ta_header4) == 4:
-                try:
-                    multi_idx = build_four_row_header(ta_header4, len(ta_display.columns))
-                    ta_display.columns = multi_idx
-                except Exception as exc:
-                    st.caption(f"(Could not build multi-row header: {exc})")
+                st.caption(f"**Transnational Access Data** — {len(ta_display):,} records")
+                st.dataframe(ta_display, use_container_width=True)
 
-            st.caption(f"**Transnational Access Data** — {len(ta_display):,} records")
-            st.dataframe(ta_display, use_container_width=True)
+                st.download_button(
+                    "Download TA CSV (original column names)",
+                    data=ta_raw.to_csv(index=False).encode("utf-8"),
+                    file_name="TA_data.csv",
+                    mime="text/csv",
+                    key="ta_csv_download",
+                )
+            else:
+                st.warning("No Transnational Access data available")
 
-            st.download_button(
-                "📥 Download TA CSV (original column names)",
-                data=ta_raw.to_csv(index=False).encode("utf-8"),
-                file_name="TA_data.csv",
-                mime="text/csv",
-                key="ta_csv_download",
-            )
-        else:
-            st.warning("No Transnational Access data available")
 
+
+    with data_tab_machine:
+        # ── RESERVED SPACE for the machine-readable ILM ────────────────────
+        # The team plans to publish the ILM as machine-readable data (e.g. a
+        # tidy long-format table, JSON-LD, or a small API) rather than the
+        # rigid wide spreadsheet.  This tab is the placeholder for that work.
+        st.markdown("""
+        <div style="margin-top:1rem; padding:2.5rem 2rem; border-radius:16px;
+                    background:linear-gradient(135deg,#f8fafc 0%,#eef2f6 100%);
+                    border:1px solid #e2e8f0; text-align:center;">
+            <div style="font-size:0.8rem; font-weight:700; letter-spacing:1.5px;
+                        text-transform:uppercase; color:#2563eb; margin-bottom:0.8rem;">
+                In Progress
+            </div>
+            <div style="font-size:1.5rem; font-weight:800; color:#1f3a5f; margin-bottom:0.6rem;">
+                Machine-readable ILM
+            </div>
+            <div style="font-size:0.95rem; color:#64748b; max-width:640px; margin:0 auto; line-height:1.6;">
+                This space is reserved for a FAIR, machine-readable version of the
+                Implementation Level Matrix — replacing the rigid wide table with a
+                tidy long-format dataset that downstream tools and the EOSC landscape
+                can consume directly. Planned outputs:
+            </div>
+            <div style="margin-top:1.5rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+                <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                             padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                    Tidy long-format CSV
+                </span>
+                <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                             padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                    JSON / JSON-LD
+                </span>
+                <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                             padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                    Controlled vocabularies
+                </span>
+                <span style="background:#ffffff; border:1px solid #cbd5e1; border-radius:999px;
+                             padding:0.5rem 1.1rem; font-size:0.85rem; font-weight:600; color:#1f3a5f;">
+                    Per-column metadata
+                </span>
+            </div>
+            <div style="margin-top:2rem; font-size:0.8rem; color:#94a3b8;">
+                Drop the transformed dataset in here when ready — this tab is the home for it.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 elif selected == "Contact":
     st.markdown("<span class='small'>Home → Contact</span>", unsafe_allow_html=True)
-    st.header("Contact")
-    st.write("• Conceptor: Jan Michalek and Juliano Ramanantsoa")
-    st.write("• Reach out: heriniaina.j.ramanantsoa@uib.no")
+    st.header("Contact & Project Information")
+
+    col_left, col_right = st.columns([1, 1])
+
+    with col_left:
+        st.markdown("""
+        <div style="background:#ffffff; padding:1.5rem; border-radius:14px;
+                    border:1px solid #e2e8f0; border-left:4px solid #2563eb;
+                    line-height:1.7;">
+            <div style="font-size:1.1rem; font-weight:800; color:#1f3a5f; margin-bottom:0.6rem;">
+                Dashboard team
+            </div>
+            <div style="color:#334155; font-size:0.95rem;">
+                <strong>Conceived by:</strong> Jan Michalek &amp; Juliano Ramanantsoa<br>
+                <strong>Affiliation:</strong> University of Bergen, Norway<br>
+                <strong>Contact:</strong>
+                <a href="mailto:heriniaina.j.ramanantsoa@uib.no"
+                   style="color:#2563eb; text-decoration:none; font-weight:600;">
+                   heriniaina.j.ramanantsoa@uib.no</a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown("""
+        <div style="background:#ffffff; padding:1.5rem; border-radius:14px;
+                    border:1px solid #e2e8f0; border-left:4px solid #0e9f6e;
+                    line-height:1.7;">
+            <div style="font-size:1.1rem; font-weight:800; color:#1f3a5f; margin-bottom:0.6rem;">
+                Geo-INQUIRE project
+            </div>
+            <div style="color:#334155; font-size:0.95rem;">
+                <strong>Full name:</strong> Geosphere INfrastructures for QUestions
+                into Integrated REsearch<br>
+                <strong>Programme:</strong> Horizon Europe — Research Infrastructures<br>
+                <strong>Grant agreement:</strong> 101058518<br>
+                <strong>Call:</strong> HORIZON-INFRA-2021-SERV-01<br>
+                <strong>Duration:</strong> 1 Oct 2022 – 30 Sep 2026<br>
+                <strong>EU contribution:</strong> €13,923,475.77<br>
+                <strong>Coordinator:</strong> GFZ Helmholtz Centre for Geosciences
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="margin-top:1.2rem; font-size:0.85rem; color:#64748b; line-height:1.6;">
+        <strong>Acknowledgement:</strong> Geo-INQUIRE is funded by the European
+        Commission under project number 101058518 within the
+        HORIZON-INFRA-2021-SERV-01 call.<br>
+        Project website:
+        <a href="https://www.geo-inquire.eu/" target="_blank"
+           style="color:#2563eb; text-decoration:none; font-weight:600;">www.geo-inquire.eu</a>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 

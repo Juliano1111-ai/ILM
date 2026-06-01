@@ -1,0 +1,32 @@
+# =====================================================================================
+# Streamlit configuration for the ILM Geo-INQUIRE Dashboard
+# =====================================================================================
+# This file is read by Streamlit at startup. Anything set here applies BOTH locally
+# and on Streamlit Community Cloud, so it is the right place to lock the theme.
+#
+# The team prefers a clean, professional white-background look, so we force the
+# light theme regardless of the user's system preference (otherwise Streamlit will
+# follow macOS / Windows / Linux dark-mode and the dashboard becomes hard to read).
+# =====================================================================================
+
+[theme]
+# ── "light" disables the dark/system theme entirely. ───────────────────────────
+base                = "light"
+
+# ── Brand-aligned accents. Buttons, sliders and the option-menu pill all use ──
+#    primaryColor; backgroundColor is the page; secondaryBackgroundColor is for
+#    sidebars, cards, expanders, etc.; textColor is the body copy.
+primaryColor              = "#1f6feb"          # Geo-INQUIRE blue
+backgroundColor           = "#ffffff"          # Pure white page
+secondaryBackgroundColor  = "#f5f7fa"          # Soft grey for chart containers
+textColor                 = "#1f2937"          # Slate-900-ish; high contrast
+font                      = "sans serif"       # System sans-serif, picked up by every browser
+
+[server]
+# Allow large file uploads (Excel snapshots can run > 50 MB if the team adds
+# screenshots into the workbook). 200 MB matches Streamlit Cloud's hard limit.
+maxUploadSize = 200
+
+[browser]
+# Don't ask Streamlit to phone home; gathers no usage stats. Optional but tidy.
+gatherUsageStats = false
