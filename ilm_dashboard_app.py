@@ -155,9 +155,14 @@ HISTORICAL_VA_SHEET_CANDIDATES = (
     "Implementation_Level_Matrix",     # older 2023/2024 exports
 )
 
-# Year tab labels: 2023, 2024, 2025 use frozen snapshots; 2026 tab uses live data.
-YEAR_TAB_KEYS   = ("2023", "2024", "2025", "2026")
-YEAR_TAB_LABELS = ("2023", "2024", "2025", "2026  ·  Live")
+# Year tab order: the LIVE 2026 data shows FIRST (Streamlit opens on the first
+# tab), then the historical snapshots most-recent-first.
+YEAR_TAB_KEYS   = ("2026", "2025", "2024", "2023")
+YEAR_TAB_LABELS = ("2026  ·  Live", "2025", "2024", "2023")
+
+# Which tab key holds the live, interactive data (used for the download button
+# and the VA_DATA_BY_YEAR mapping).  Keep this in sync if the live year changes.
+LIVE_YEAR_KEY = "2026"
 
 # --- Call tabs (Transnational Access) ------------------------------------------
 # Per spec, TA charts group projects by funding Call (1–4); each Call is
@@ -288,6 +293,9 @@ def check_password():
             st.error("😕 Password incorrect. Please try again.")
         
         st.markdown('</div>', unsafe_allow_html=True)
+
+        # EU funding acknowledgement (compact card) on the welcome / password page.
+        render_eu_acknowledgement(variant="login")
         
         st.markdown("""
         <div style="text-align: center; color: #95A5A6; margin-top: 3rem; padding: 2rem;">
@@ -364,6 +372,58 @@ TICK_FONT_SIZE   = 12
 
 # Backwards-compatibility shim for older code paths that still reference YEAR_TABS.
 YEAR_TABS = YEAR_TAB_KEYS
+
+
+# ===============================================================================================
+# EU FUNDING ACKNOWLEDGEMENT — official emblem + mandated sentence
+# ===============================================================================================
+# Horizon Europe grants require visible acknowledgement of EU funding using the
+# emblem and the standard sentence.  The flag below is an inline SVG (12 gold
+# stars on blue) so it renders without any external image dependency.
+EU_FLAG_SVG = '''<svg viewBox="0 0 810 540" xmlns="http://www.w3.org/2000/svg" style="height:46px;width:auto;border-radius:3px;display:block;"><rect width="810" height="540" fill="#003399"/><path d="M405.0,54.0 L396.9,78.9 L370.8,78.9 L391.9,94.2 L383.8,119.1 L405.0,103.8 L426.2,119.1 L418.1,94.2 L439.2,78.9 L413.1,78.9 Z" fill="#FFCC00"/><path d="M495.0,78.1 L486.9,103.0 L460.8,103.0 L481.9,118.4 L473.8,143.2 L495.0,127.9 L516.2,143.2 L508.1,118.4 L529.2,103.0 L503.1,103.0 Z" fill="#FFCC00"/><path d="M560.9,144.0 L552.8,168.9 L526.6,168.9 L547.8,184.2 L539.7,209.1 L560.9,193.8 L582.0,209.1 L574.0,184.2 L595.1,168.9 L569.0,168.9 Z" fill="#FFCC00"/><path d="M585.0,234.0 L576.9,258.9 L550.8,258.9 L571.9,274.2 L563.8,299.1 L585.0,283.8 L606.2,299.1 L598.1,274.2 L619.2,258.9 L593.1,258.9 Z" fill="#FFCC00"/><path d="M560.9,324.0 L552.8,348.9 L526.6,348.9 L547.8,364.2 L539.7,389.1 L560.9,373.8 L582.0,389.1 L574.0,364.2 L595.1,348.9 L569.0,348.9 Z" fill="#FFCC00"/><path d="M495.0,389.9 L486.9,414.8 L460.8,414.8 L481.9,430.1 L473.8,455.0 L495.0,439.6 L516.2,455.0 L508.1,430.1 L529.2,414.8 L503.1,414.8 Z" fill="#FFCC00"/><path d="M405.0,414.0 L396.9,438.9 L370.8,438.9 L391.9,454.2 L383.8,479.1 L405.0,463.8 L426.2,479.1 L418.1,454.2 L439.2,438.9 L413.1,438.9 Z" fill="#FFCC00"/><path d="M315.0,389.9 L306.9,414.8 L280.8,414.8 L301.9,430.1 L293.8,455.0 L315.0,439.6 L336.2,455.0 L328.1,430.1 L349.2,414.8 L323.1,414.8 Z" fill="#FFCC00"/><path d="M249.1,324.0 L241.0,348.9 L214.9,348.9 L236.0,364.2 L228.0,389.1 L249.1,373.8 L270.3,389.1 L262.2,364.2 L283.4,348.9 L257.2,348.9 Z" fill="#FFCC00"/><path d="M225.0,234.0 L216.9,258.9 L190.8,258.9 L211.9,274.2 L203.8,299.1 L225.0,283.8 L246.2,299.1 L238.1,274.2 L259.2,258.9 L233.1,258.9 Z" fill="#FFCC00"/><path d="M249.1,144.0 L241.0,168.9 L214.9,168.9 L236.0,184.2 L228.0,209.1 L249.1,193.8 L270.3,209.1 L262.2,184.2 L283.4,168.9 L257.2,168.9 Z" fill="#FFCC00"/><path d="M315.0,78.1 L306.9,103.0 L280.8,103.0 L301.9,118.4 L293.8,143.2 L315.0,127.9 L336.2,143.2 L328.1,118.4 L349.2,103.0 L323.1,103.0 Z" fill="#FFCC00"/></svg>'''
+
+# The exact acknowledgement sentence Geo-INQUIRE asks partners to use.
+GEOINQUIRE_ACK_SENTENCE = (
+    "Geo-INQUIRE is funded by the European Commission under project number "
+    "101058518 within the HORIZON-INFRA-2021-SERV-01 call."
+)
+
+
+def render_eu_acknowledgement(variant="footer"):
+    """
+    Render the EU funding acknowledgement.
+
+    variant="footer"  -> full-width green banner used at the bottom of each page.
+    variant="login"   -> compact light card used on the password / welcome page.
+    """
+    if variant == "login":
+        st.markdown(
+            '<div style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:12px;'
+            ' background:#ffffff; border:1px solid #e2e8f0;'
+            ' display:flex; align-items:center; gap:1rem;">'
+            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
+            '<div style="font-size:0.78rem; color:#475569; line-height:1.45;">'
+            '<strong style="color:#1f3a5f;">Funded by the European Union</strong><br>'
+            + GEOINQUIRE_ACK_SENTENCE +
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div style="margin-top:2.5rem; padding:1.5rem 1.75rem; border-radius:14px;'
+            ' background:linear-gradient(135deg,#5a9367 0%,#6aa877 100%); color:#ffffff;">'
+            '<div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">'
+            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
+            '<div style="flex:1 1 280px; min-width:240px;">'
+            '<div style="font-size:1rem; font-weight:800; margin-bottom:0.35rem;">'
+            'How to acknowledge Geo-INQUIRE</div>'
+            '<div style="font-size:0.85rem; line-height:1.5; opacity:0.97;">'
+            'Please acknowledge Geo-INQUIRE using this sentence:<br>'
+            '<em>&ldquo;' + GEOINQUIRE_ACK_SENTENCE + '&rdquo;</em>'
+            '</div></div></div></div>',
+            unsafe_allow_html=True,
+        )
+
 
 # ===============================================================================================
 # CUSTOM CSS STYLING
@@ -853,25 +913,60 @@ def _apply_va_column_renames(df):
 @st.cache_data(ttl=3600)
 def load_historical_va_data():
     """
-    Read each frozen ILM workbook in HISTORICAL_VA_FILES and return a dict
-    {year_label: dataframe}.  Missing files are skipped silently.
+    Load the frozen historical VA snapshots for the 2023 / 2024 / 2025 tabs.
+
+    Robust file discovery — instead of requiring an exact filename match (which
+    broke when the snapshots were renamed / re-exported), this:
+      1. Anchors to the folder the script lives in, so it works no matter what
+         the current working directory is (local `streamlit run`, Streamlit
+         Cloud, etc.).
+      2. Globs every .xlsx in ILM_Old/ and matches a file to a year simply by
+         looking for the 4-digit year in the filename.  "…21 December 2023…"
+         matches 2023, "…5 November 2024…" matches 2024, and so on.
+      3. Tries the known sheet-name candidates, then falls back to the first
+         sheet in the workbook if none match.
+
+    Returns {"2023": df|None, "2024": df|None, "2025": df|None} and stashes a
+    short diagnostic in `st.session_state["_hist_diag"]` so the UI can explain
+    exactly what was (or wasn't) found.
     """
-    out = {}
-    for year_label, path in HISTORICAL_VA_FILES.items():
-        if not os.path.exists(path):
-            out[year_label] = None
+    import glob
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    ilm_old  = os.path.join(base_dir, "ILM_Old")
+
+    out  = {"2023": None, "2024": None, "2025": None}
+    diag = {"folder": ilm_old, "found_files": [], "matched": {}, "errors": {}}
+
+    if not os.path.isdir(ilm_old):
+        diag["errors"]["folder"] = "ILM_Old/ directory not found next to the app."
+        st.session_state["_hist_diag"] = diag
+        return out
+
+    xlsx_files = sorted(glob.glob(os.path.join(ilm_old, "*.xlsx")))
+    diag["found_files"] = [os.path.basename(f) for f in xlsx_files]
+
+    for year in ("2023", "2024", "2025"):
+        # Match by the year appearing anywhere in the filename.
+        candidates = [f for f in xlsx_files if year in os.path.basename(f)]
+        if not candidates:
+            diag["matched"][year] = None
             continue
+        path = candidates[0]                       # if several, take the first alphabetically
+        diag["matched"][year] = os.path.basename(path)
         try:
             xl = pd.ExcelFile(path)
             sheet = next((s for s in HISTORICAL_VA_SHEET_CANDIDATES if s in xl.sheet_names), None)
             if sheet is None:
-                out[year_label] = None
-                continue
+                sheet = xl.sheet_names[0]          # fall back to the first sheet
             df = pd.read_excel(path, sheet_name=sheet, header=3)
             df = _apply_va_column_renames(df)
-            out[year_label] = df
-        except Exception:
-            out[year_label] = None
+            out[year] = df
+        except Exception as exc:
+            diag["errors"][year] = str(exc)
+            out[year] = None
+
+    st.session_state["_hist_diag"] = diag
     return out
 
 
@@ -1423,8 +1518,20 @@ def render_in_year_tabs(fig_or_builder, figure_key, source_cols=None, access_typ
         with tab:
             year_df = data_by_year.get(year_label)
             if year_df is None or (hasattr(year_df, "empty") and year_df.empty):
-                st.info(f"📂 No data available for **{year_label}**. "
-                        f"Drop the matching snapshot into `ILM_Old/` to populate this tab.")
+                # Surface a precise diagnostic so it's obvious WHY a year is empty.
+                diag = st.session_state.get("_hist_diag", {})
+                found = diag.get("found_files", [])
+                matched = diag.get("matched", {}).get(year_label)
+                msg = f"No data available for **{year_label}**."
+                if matched:
+                    err = diag.get("errors", {}).get(year_label)
+                    msg += f" Matched file `{matched}` but could not read it" + (f": {err}" if err else ".")
+                elif found:
+                    msg += (f" No file in `ILM_Old/` contains \"{year_label}\". "
+                            f"Files present: {', '.join(found)}.")
+                else:
+                    msg += " The `ILM_Old/` folder is empty or missing next to the app."
+                st.info(msg)
                 continue
             try:
                 fig = fig_or_builder(year_df, year_label) if is_builder else fig_or_builder
@@ -1441,7 +1548,7 @@ def render_in_year_tabs(fig_or_builder, figure_key, source_cols=None, access_typ
                                 key=f"{figure_key}_{year_label}")
             if source_cols:
                 add_source_annotation(source_cols, access_type=access_type)
-            if download_label_base and year_label == YEAR_TAB_KEYS[-1]:
+            if download_label_base and year_label == LIVE_YEAR_KEY:
                 create_download_button(fig, f"{download_label_base}_{year_label}",
                                        col_keys=source_cols, access_type=access_type)
 
@@ -1510,6 +1617,123 @@ def value_counts_clean(series):
     if cleaned.empty:
         return []
     return list(cleaned.value_counts().items())
+
+
+# ===============================================================================================
+# TRANSNATIONAL ACCESS — domain-aware statistics helpers
+# ===============================================================================================
+# The TA sheet is full of free-text fields (access level, integration, outcomes,
+# metadata), so meaningful charts need normalisation rather than a naive
+# value_counts.  These helpers turn the messy text into clean, comparable
+# categories and detect whether a project has actually EXPOSED a produced asset
+# (a DOI or a URL) versus merely describing or planning one.
+# ===============================================================================================
+_TA_BOGUS = {"", "0", "0.0", "nan", "none", "n/a", "-", "tbd", "to be determined",
+             "to be determined.", "please fill out this cell asap, if applicable"}
+
+
+def ta_normalize_access_level(val):
+    """Map the messy 'Level of access' free text onto clean categories."""
+    if pd.isna(val):
+        return None
+    s = str(val).strip().lower()
+    if s in _TA_BOGUS or "to be determin" in s or "tbd" in s:
+        return "To be determined"
+    if "open" in s:                       # "Open Access", "will be open access", "OpenAcces"
+        return "Open access"
+    if "embargo" in s:                    # "Embargoed", "Preliminary (embargoed)"
+        return "Embargoed"
+    if "restrict" in s:
+        return "Restricted"
+    return "Other"
+
+
+def ta_normalize_integration(val):
+    """Map 'Expected strategy of integration' onto a handful of platforms."""
+    if pd.isna(val):
+        return None
+    s = str(val).strip().lower()
+    if s in _TA_BOGUS:
+        return None
+    if "sdl" in s and "epos" not in s and "eccsel" not in s and "dmp" not in s:
+        return "SDL"
+    if "epos" in s:
+        return "EPOS platform"
+    if "eccsel" in s:
+        return "ECCSEL"
+    if "dmp" in s or "geo-i" in s:
+        return "Geo-INQUIRE DMP"
+    return "Other / mixed"
+
+
+def ta_data_exposure_status(row):
+    """
+    Classify whether a TA project has actually exposed a produced asset.
+
+    Looks across the outcome/metadata/asset columns for a DOI or a URL:
+      • "Asset linked (DOI/URL)" — a concrete, citable/линkable output exists.
+      • "In progress"            — research ongoing / not yet available / planned.
+      • "Described, no link"      — outcomes described in prose but no link given.
+      • "Not reported"           — nothing recorded at all.
+    """
+    cols = ["outcome_metadata", "delivered_outcomes", "associated_va", "expected_outcomes"]
+    text = " ".join(str(row.get(c, "")) for c in cols if c in row.index)
+    t = text.lower()
+    has_doi = ("doi" in t) or bool(re.search(r"10\.\d{4,9}/\S+", text))
+    has_url = bool(re.search(r"https?://", t))
+    if has_doi or has_url:
+        return "Asset linked (DOI/URL)"
+    blank = t.replace("nan", "").strip()
+    if not blank:
+        return "Not reported"
+    if any(k in t for k in ["not yet", "ongoing", "to be determin", "tbd",
+                            "in development", "in progress", "submitted", "preprint"]):
+        return "In progress"
+    return "Described, no link"
+
+
+def ta_count_asset_links(df):
+    """Count how many distinct DOIs / URLs are recorded across the TA outcomes."""
+    cols = [c for c in ["outcome_metadata", "delivered_outcomes", "associated_va"] if c in df.columns]
+    found = set()
+    for _, row in df.iterrows():
+        text = " ".join(str(row.get(c, "")) for c in cols)
+        for m in re.findall(r"https?://\S+", text):
+            found.add(m.rstrip(".,);"))
+        for m in re.findall(r"10\.\d{4,9}/\S+", text):
+            found.add("doi:" + m.rstrip(".,);"))
+    return len(found)
+
+
+def ta_reporting_completeness(df):
+    """
+    Return a tidy DataFrame of how completely each lifecycle field is filled,
+    as a percentage of the projects in `df`.  Useful as a 'metadata / reporting
+    completeness' bar chart.
+    """
+    fields = {
+        "Project stage":       "project_stage",
+        "Visit dates":         "visit_start",
+        "Units used":          "units_used",
+        "No. of users":        "number_of_users",
+        "Expected outcomes":   "expected_outcomes",
+        "Delivered outcomes":  "delivered_outcomes",
+        "Outcome metadata":    "outcome_metadata",
+        "Access level":        "access_level",
+        "Integration":         "integration_strategy",
+    }
+    n = len(df)
+    rows = []
+    for label, col in fields.items():
+        if col in df.columns and n:
+            filled = df[col].dropna().astype(str).str.strip()
+            filled = filled[~filled.str.lower().isin(_TA_BOGUS)]
+            pct = round(100 * len(filled) / n, 1)
+        else:
+            pct = 0.0
+        rows.append((label, pct))
+    return pd.DataFrame(rows, columns=["Field", "Completeness %"])
+
 # ===============================================================================================
 # COLUMN SOURCE MAPPING — Maps internal column names to original ILM table column names
 # ===============================================================================================
@@ -1589,13 +1813,16 @@ def add_source_annotation(col_keys, access_type="VA"):
 # ===============================================================================================
 def create_download_button(fig, filename_base, col_keys=None, access_type="VA"):
     """Create professional PNG download button at 300 DPI using kaleido.
-    Also adds column source annotation if col_keys are provided."""
+
+    NOTE: this function intentionally does NOT render the column-source
+    annotation any more.  The caller (`render_in_year_tabs` /
+    `render_in_call_tabs`) already shows exactly one source line per figure;
+    rendering it here as well produced the duplicate "Source column: …" lines.
+    The `col_keys` / `access_type` parameters are kept for backwards
+    compatibility but are no longer used for annotation.
+    """
     if fig is None:
         return
-    
-    # Add column source annotation if provided
-    if col_keys:
-        add_source_annotation(col_keys, access_type)
     
     try:
         # Try PNG export at 300 DPI using kaleido
@@ -2311,7 +2538,7 @@ if selected == "Dashboard":
                             st.pyplot(fig_heatmap_y, clear_figure=False, use_container_width=False)
 
                             # Single download button only on the 2026 (live) tab.
-                            if _yr == YEAR_TAB_KEYS[-1]:
+                            if _yr == LIVE_YEAR_KEY:
                                 buf = io.BytesIO()
                                 fig_heatmap_y.savefig(buf, format='png', dpi=300, bbox_inches='tight')
                                 buf.seek(0)
@@ -2339,78 +2566,154 @@ if selected == "Dashboard":
     
     else:  # Transnational Access
         if ta_df is not None and not ta_df.empty:
-            # KPI Metrics
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.markdown(f"<div class='kpi'><h3>Total Applications</h3><div class='val'>{len(ta_df)}</div></div>", unsafe_allow_html=True)
-            with col2:
-                hosts = ta_df['ta_host'].nunique() if 'ta_host' in ta_df.columns else 0
-                st.markdown(f"<div class='kpi'><h3>TA Hosts</h3><div class='val'>{hosts}</div></div>", unsafe_allow_html=True)
-            with col3:
-                completed = len(ta_df[ta_df['project_stage'].str.contains('exhausted', case=False, na=False)]) if 'project_stage' in ta_df.columns else 0
-                st.markdown(f"<div class='kpi'><h3>Completed</h3><div class='val'>{completed}</div></div>", unsafe_allow_html=True)
-            with col4:
-                calls = ta_df['call'].nunique() if 'call' in ta_df.columns else 0
-                st.markdown(f"<div class='kpi'><h3>Calls</h3><div class='val'>{calls}</div></div>", unsafe_allow_html=True)
-            
+            # Work on the actual TA *projects* (rows with a project_id), not the
+            # installation-definition rows that pad the sheet.
+            ta_projects = ta_df.copy()
+            if 'project_id' in ta_projects.columns:
+                ta_projects = ta_projects[ta_projects['project_id'].notna()]
+
+            # ── KPI row: outcomes & exposure focused ────────────────────────
+            n_proj   = len(ta_projects)
+            n_hosts  = ta_projects['ta_host'].nunique() if 'ta_host' in ta_projects.columns else 0
+            n_users  = int(pd.to_numeric(ta_projects.get('number_of_users'), errors='coerce').fillna(0).sum()) if 'number_of_users' in ta_projects.columns else 0
+            exposure = ta_projects.apply(ta_data_exposure_status, axis=1) if n_proj else pd.Series(dtype=str)
+            n_linked = int((exposure == "Asset linked (DOI/URL)").sum()) if n_proj else 0
+            n_doi_url = ta_count_asset_links(ta_projects)
+            exposure_rate = round(100 * n_linked / n_proj, 0) if n_proj else 0
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(f"<div class='kpi'><h3>TA Projects</h3><div class='val'>{n_proj}</div></div>", unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"<div class='kpi'><h3>Host Facilities</h3><div class='val'>{n_hosts}</div></div>", unsafe_allow_html=True)
+            with c3:
+                st.markdown(f"<div class='kpi'><h3>Users Served</h3><div class='val'>{n_users}</div></div>", unsafe_allow_html=True)
+            with c4:
+                st.markdown(f"<div class='kpi'><h3>Assets Exposed</h3><div class='val'>{int(exposure_rate)}%</div></div>", unsafe_allow_html=True)
+
             st.markdown("---")
-            
-            # TA Overview
-            st.markdown("## Transnational Access Overview")
+            st.markdown("## Outcomes & Access")
+            st.caption(
+                "TA projects are grouped by funding Call. These panels focus on what each "
+                "access actually produced — delivered outcomes, where assets are exposed, "
+                "the level of access granted, and how outputs integrate with the RIs."
+            )
+
+            # ── Row 1: Project-stage funnel | Data-exposure status ──────────
             col1, col2 = st.columns(2)
-            
             with col1:
                 def _builder(_df, _yr):
-                    if not ('project_stage' in _df.columns):
-                        return None
-                    # Strip out misleading "0" / empty / nan placeholders before
-                    # building the donut — otherwise the empty cells in the
-                    # source sheet show up as a 50%+ "0" wedge in the legend.
-                    stage_clean = _df['project_stage'].dropna().astype(str).str.strip()
-                    bogus = {"", "0", "0.0", "nan", "None", "n/a", "N/A", "-"}
-                    stage_clean = stage_clean[~stage_clean.isin(bogus)]
+                    stage_clean = _df['project_stage'].dropna().astype(str).str.strip() if 'project_stage' in _df.columns else pd.Series(dtype=str)
+                    stage_clean = stage_clean[~stage_clean.str.lower().isin(_TA_BOGUS)]
                     if stage_clean.empty:
                         return None
-                    stage_counts = stage_clean.value_counts().to_dict()
-                    stage_data = pd.DataFrame(list(stage_counts.items()), columns=['Stage', 'Count']).sort_values('Count', ascending=False)
+                    stage_data = (stage_clean.value_counts()
+                                  .rename_axis('Stage').reset_index(name='Count'))
                     stage_color_map = {
                         'Visit/access exhausted': COLORS['exhausted'],
                         'Time window for the visit/access fixed': COLORS['fixed'],
                         'Data/products ready': COLORS['ready'],
                         'PI contacted': COLORS['contacted'],
-                        'Project details negotiated': COLORS['negotiated']
+                        'Project details negotiated': COLORS['negotiated'],
                     }
-                    fig_stage = create_professional_donut_chart(stage_data, 'Stage', 'Count',
-                                                               'Project Stage Distribution',
-                                                               color_map=stage_color_map)
-                    return fig_stage
-                render_in_call_tabs(
-                    _builder,
-                    figure_key="project_stages",
-                    ta_dataframe=ta_df,
-                    source_cols=["project_stage"],
-                    download_label_base="project_stages",
-                    figure_title="Project Stages",
-                )
+                    return create_professional_donut_chart(stage_data, 'Stage', 'Count',
+                                                           'Project Stage (lifecycle)',
+                                                           color_map=stage_color_map)
+                render_in_call_tabs(_builder, figure_key="ta_stage",
+                                    ta_dataframe=ta_df, source_cols=["project_stage"],
+                                    download_label_base="ta_stage",
+                                    figure_title="Project Stage")
             with col2:
                 def _builder(_df, _yr):
-                    if not ('call' in _df.columns):
+                    if _df.empty:
                         return None
-                    call_counts = _df['call'].value_counts().to_dict()
-                    call_data = pd.DataFrame(list(call_counts.items()), columns=['Call', 'Count']).sort_values('Call')
-                    fig_calls = create_professional_bar_chart(call_data, 'Call', 'Count',
-                                                              'Applications by Call',
-                                                              orientation='v',
-                                                              color_palette=COLORS['blue_palette'])
-                    return fig_calls
-                render_in_call_tabs(
-                    _builder,
-                    figure_key="applications_by_call",
-                    ta_dataframe=ta_df,
-                    source_cols=["call"],
-                    download_label_base="applications_by_call",
-                    figure_title="Applications By Call",
-                )
+                    exp = _df.apply(ta_data_exposure_status, axis=1)
+                    exp_data = exp.value_counts().rename_axis('Status').reset_index(name='Count')
+                    color_map = {
+                        'Asset linked (DOI/URL)': COLORS['success'],
+                        'In progress':            COLORS['warning'],
+                        'Described, no link':     COLORS['accent'],
+                        'Not reported':           COLORS['unknown'],
+                    }
+                    return create_professional_donut_chart(exp_data, 'Status', 'Count',
+                                                           'Data Exposure of Produced Assets',
+                                                           color_map=color_map)
+                render_in_call_tabs(_builder, figure_key="ta_exposure",
+                                    ta_dataframe=ta_df,
+                                    source_cols=["delivered_outcomes", "outcome_metadata"],
+                                    download_label_base="ta_exposure",
+                                    figure_title="Data Exposure")
+
+            st.markdown("---")
+
+            # ── Row 2: Access level | Integration strategy ──────────────────
+            col1, col2 = st.columns(2)
+            with col1:
+                def _builder(_df, _yr):
+                    if 'access_level' not in _df.columns:
+                        return None
+                    lvl = _df['access_level'].apply(ta_normalize_access_level).dropna()
+                    if lvl.empty:
+                        return None
+                    lvl_data = lvl.value_counts().rename_axis('Level').reset_index(name='Count')
+                    color_map = {
+                        'Open access':       COLORS['success'],
+                        'Embargoed':         COLORS['warning'],
+                        'Restricted':        COLORS['danger'],
+                        'To be determined':  COLORS['unknown'],
+                        'Other':             COLORS['accent'],
+                    }
+                    return create_professional_donut_chart(lvl_data, 'Level', 'Count',
+                                                           'Level of Access',
+                                                           color_map=color_map)
+                render_in_call_tabs(_builder, figure_key="ta_access",
+                                    ta_dataframe=ta_df, source_cols=["access_level"],
+                                    download_label_base="ta_access",
+                                    figure_title="Level of Access")
+            with col2:
+                def _builder(_df, _yr):
+                    if 'integration_strategy' not in _df.columns:
+                        return None
+                    integ = _df['integration_strategy'].apply(ta_normalize_integration).dropna()
+                    if integ.empty:
+                        return None
+                    integ_data = (integ.value_counts()
+                                  .rename_axis('Strategy').reset_index(name='Count')
+                                  .sort_values('Count', ascending=True))
+                    return create_professional_bar_chart(integ_data, 'Count', 'Strategy',
+                                                         'Integration Strategy (asset destination)',
+                                                         orientation='h',
+                                                         color_palette=COLORS['blue_palette'])
+                render_in_call_tabs(_builder, figure_key="ta_integration",
+                                    ta_dataframe=ta_df, source_cols=["integration_strategy"],
+                                    download_label_base="ta_integration",
+                                    figure_title="Integration Strategy")
+
+            st.markdown("---")
+
+            # ── Row 3: Reporting / metadata completeness (full width) ───────
+            st.markdown("### Reporting & Metadata Completeness")
+            st.caption(
+                "How completely each stage of the TA lifecycle is recorded, as a share of "
+                "projects in the selected Call — a proxy for metadata quality and follow-up."
+            )
+            def _builder(_df, _yr):
+                comp = ta_reporting_completeness(_df)
+                if comp.empty or comp['Completeness %'].sum() == 0:
+                    return None
+                comp = comp.sort_values('Completeness %', ascending=True)
+                fig = create_professional_bar_chart(comp, 'Completeness %', 'Field',
+                                                    'Lifecycle Field Completeness (%)',
+                                                    orientation='h',
+                                                    color_palette=COLORS['green_palette'])
+                fig.update_layout(xaxis=dict(range=[0, 100]))
+                return fig
+            render_in_call_tabs(_builder, figure_key="ta_completeness",
+                                ta_dataframe=ta_df,
+                                source_cols=["expected_outcomes", "delivered_outcomes",
+                                             "outcome_metadata"],
+                                download_label_base="ta_completeness",
+                                figure_title="Reporting Completeness")
         else:
             st.warning("No Transnational Access data available")
 
@@ -3272,6 +3575,11 @@ elif selected == "Contact":
     """, unsafe_allow_html=True)
 
 
+# ===============================================================================================
+# PAGE FOOTER — EU funding acknowledgement on every page
+# ===============================================================================================
+# This runs at module level after the page-routing if/elif chain above, so the
+# acknowledgement banner appears at the bottom of whichever page is selected.
+# (Skipped implicitly on the login screen because the app returns early there.)
+render_eu_acknowledgement(variant="footer")
 
-
-    

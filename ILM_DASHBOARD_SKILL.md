@@ -67,9 +67,18 @@ ILM_Old/*.xlsx (frozen) ──► load_historical_va_data() ──► VA_DATA_BY
 
 - **`VA_DATA_BY_YEAR`** maps each year tab to a DataFrame. `2023/2024/2025` are the
   frozen snapshots; **`2026` is `va_df`** (the live, interactive current data).
+- **Tab order is 2026 · Live first**, then 2025, 2024, 2023 — so the dashboard opens
+  on the live data (`YEAR_TAB_KEYS = ("2026","2025","2024","2023")`,
+  `LIVE_YEAR_KEY = "2026"`). The PNG download button renders only on the live tab.
 - Every VA chart renders **four year tabs** via `render_in_year_tabs(builder, …)`.
 - Every TA chart renders **four Call tabs** via `render_in_call_tabs(builder, ta_dataframe=ta_df, …)`,
   filtered by the `call` column (extracted from `project_id` prefixes `TA1`–`TA4`).
+- **Historical files are discovered by globbing** `ILM_Old/*.xlsx` and matching the
+  4-digit year in the filename (anchored to the script directory via
+  `os.path.dirname(os.path.abspath(__file__))`). Exact filenames no longer matter,
+  but the files **must be committed to the repo** or the live app can't see them.
+  A diagnostic is stashed in `st.session_state["_hist_diag"]`; the "no data" banner
+  prints which files were found.
 
 ---
 
@@ -133,6 +142,35 @@ implementation_status, data_repr, license, metadata_standard, gender`.
    (⚠️/ℹ️) in `st.info`/`st.warning` are fine.
 10. **`st.header("### …")` is wrong** — `st.header` already renders a heading, so the
     `###` shows literally. Use `st.header("Title")` or `st.markdown("### Title")`.
+11. **Source-column annotation appears exactly once per figure.** Only the tab
+    renderers call `add_source_annotation`; `create_download_button` must NOT (it used
+    to, which produced duplicate "Source column: …" lines).
+12. **EU funding acknowledgement is mandatory and visible.** `render_eu_acknowledgement()`
+    draws the inline 12-star EU flag (`EU_FLAG_SVG`) plus the exact sentence in
+    `GEOINQUIRE_ACK_SENTENCE`. It runs as a page footer (module level, end of file,
+    `variant="footer"`) and on the login page (`variant="login"`). Never remove it.
+
+## 5a. Transnational Access statistics (expert framing)
+
+The TA sheet is mostly free text, so charts use normalisation helpers — never raw
+`value_counts` on these columns:
+
+- `ta_normalize_access_level()` → Open access / Embargoed / Restricted / To be determined.
+- `ta_normalize_integration()` → SDL / EPOS platform / ECCSEL / Geo-INQUIRE DMP.
+- `ta_data_exposure_status(row)` → **the key outcome metric**: classifies each project as
+  *Asset linked (DOI/URL)* / *In progress* / *Described, no link* / *Not reported* by
+  scanning `outcome_metadata`, `delivered_outcomes`, `associated_va`, `expected_outcomes`
+  for DOIs and URLs.
+- `ta_count_asset_links(df)` → number of distinct DOIs/URLs actually recorded.
+- `ta_reporting_completeness(df)` → % of projects with each lifecycle field filled
+  (stage, visit dates, units, users, expected/delivered outcomes, outcome metadata,
+  access level, integration) — a metadata-quality proxy.
+
+The TA Dashboard ("Outcomes & Access") shows: KPIs (projects, host facilities, users
+served, **% assets exposed**), then Project-stage funnel + Data-exposure donut, then
+Access-level + Integration-strategy, then a full-width Reporting-completeness bar.
+TA stats operate on **project rows only** (`project_id` not null), not the
+installation-definition padding rows.
 
 ---
 
@@ -209,6 +247,10 @@ TA shows Call 1–4, no "0" pie slices, light theme, no red errors, PNG download
 
 - Plotly 6.0 + Kaleido 1.x ⇒ broken PNG export + scary warning. **Pin `kaleido==0.2.1`.**
 - `config.toml` placed in the repo root does nothing — must be `.streamlit/config.toml`.
+- **Historical year tabs empty on the live app?** The `ILM_Old/*.xlsx` files almost
+  certainly weren't committed/pushed. `git add ILM_Old/` and push, then reboot. Confirm
+  with `git ls-files ILM_Old/`. The glob loader matches by year, so exact filenames
+  don't matter — but the files must be *in the repo*.
 - Forgetting to reboot Streamlit Cloud after a loader change ⇒ `ValueError: not enough
   values to unpack`. Reboot clears the cache.
 - Sheet names drift between exports (`ILM_VA` vs `ILM-VA` vs `Implementation_Level_Matrix_VA`).
