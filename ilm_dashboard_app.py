@@ -188,11 +188,21 @@ def check_password():
     
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        if st.session_state["password"] == "geoinquire2026":
+        # Read with .get() so this never raises KeyError if the widget value
+        # isn't in session_state yet — a known Streamlit on_change gotcha,
+        # especially on Streamlit Cloud / newer Streamlit where session state
+        # can persist across reruns and code reloads.
+        if st.session_state.get("password", "") == "geoinquire2026":
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+            # Clear the typed password from memory; .pop is safe even if the
+            # key was already removed on a previous rerun.
+            st.session_state.pop("password", None)
         else:
             st.session_state["password_correct"] = False
+
+    # Already authenticated in this browser session — short-circuit.
+    if st.session_state.get("password_correct", False):
+        return True
 
     if "password_correct" not in st.session_state:
         st.markdown("""
@@ -289,7 +299,7 @@ def check_password():
             placeholder="Enter password"
         )
         
-        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+        if not st.session_state.get("password_correct", True):
             st.error("😕 Password incorrect. Please try again.")
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -310,7 +320,7 @@ def check_password():
         
         return False
     
-    elif not st.session_state["password_correct"]:
+    elif not st.session_state.get("password_correct", False):
         st.text_input("🔐 Password", type="password", on_change=password_entered, key="password")
         st.error("😕 Password incorrect")
         return False
