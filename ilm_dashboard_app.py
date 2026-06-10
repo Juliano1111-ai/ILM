@@ -475,32 +475,38 @@ CANONICAL_COLORS = {
     'to be determined' : '#94a3b8',
 }
 
-# A fixed, harmonious palette for every "other" categorical label.  It is indexed
-# by the label's rank in the sorted unique set, which makes the assignment stable
-# across year/call tabs.
+# A fixed, harmonious palette for every "other" categorical label.  Colours are
+# handed out from this palette via a PERSISTENT registry (see resolve_colors), so
+# a given label keeps its colour across every year/Call tab even when the set of
+# categories present differs from one year to the next.
 STABLE_PALETTE = ['#1f3a5f', '#2563eb', '#0e9f6e', '#d97706', '#7c3aed',
                   '#0891b2', '#db2777', '#475569', '#3b82f6', '#10b981',
                   '#f59e0b', '#6366f1', '#14b8a6', '#8b5cf6', '#0ea5e9']
+
+# label -> colour, assigned first-come and never reshuffled.  Namespaced per
+# palette so "all-blue" charts and "all-green" charts don't fight over slots.
+_COLOR_REGISTRY = {}
 
 
 def resolve_colors(labels, color_map=None, palette=None):
     """
     Map category labels -> colours so the SAME label always gets the SAME colour
-    regardless of ordering (i.e. consistent across every year / call tab).
+    on EVERY year / Call tab — regardless of slice ordering AND regardless of
+    which categories happen to be present in a given year.
 
-    Parameters
-    ----------
-    labels    : iterable of category labels (the slice / bar labels).
-    color_map : optional {label: colour} from the caller (case-insensitive).
-    palette   : optional list used for the deterministic fallback.  When given
-                (e.g. a chart that wants to stay "all blues"), CANONICAL_COLORS
-                is skipped and colours come from this palette by sorted-rank.
+    Priority:
+      1. caller `color_map` (case-insensitive) — explicit wins;
+      2. if no `palette` was passed, a fixed `CANONICAL_COLORS` lookup for
+         status / yes-no / access labels (so "Not implemented" is always red);
+      3. otherwise a colour drawn from `palette` (or STABLE_PALETTE) via a
+         PERSISTENT, first-seen registry.  The earlier version ranked labels
+         within the single call, so adding/removing a category in one year
+         reshuffled every colour — this registry makes the mapping stable.
     """
     labels = ["" if l is None else str(l) for l in labels]
-    ordered_unique = sorted(set(labels))
-    rank = {lab: i for i, lab in enumerate(ordered_unique)}
     cmap_ci = {str(k).strip().lower(): v for k, v in (color_map or {}).items()}
     pal = palette if palette else STABLE_PALETTE
+    ns = tuple(pal)                      # registry namespace = the palette itself
     out = []
     for lab in labels:
         key = lab.strip().lower()
@@ -509,7 +515,11 @@ def resolve_colors(labels, color_map=None, palette=None):
         elif (palette is None) and (key in CANONICAL_COLORS):
             out.append(CANONICAL_COLORS[key])
         else:
-            out.append(pal[rank[lab] % len(pal)])
+            reg_key = (ns, key)
+            if reg_key not in _COLOR_REGISTRY:
+                used = sum(1 for (n, _) in _COLOR_REGISTRY if n == ns)
+                _COLOR_REGISTRY[reg_key] = pal[used % len(pal)]
+            out.append(_COLOR_REGISTRY[reg_key])
     return out
 
 
@@ -1666,13 +1676,16 @@ def build_four_row_header(header_rows, ncols):
 # ===============================================================================================
 def render_in_year_tabs(fig_or_builder, figure_key, source_cols=None, access_type="VA",
                         download_label_base=None, figure_title="",
-                        data_by_year=None):
+                        data_by_year=None, row_filter=None):
     """
     Render a chart across four year tabs (2023 / 2024 / 2025 / 2026).
 
     `fig_or_builder` may be:
       * a pre-built Plotly/matplotlib figure  (shown identically in every tab)
       * a callable `(df, year_label) → Figure` (preferred — rebuilds per year)
+
+    `row_filter` (optional): a callable `df -> df` applied to EACH year's frame
+    before the builder runs — used to scope a figure to one Work Package, etc.
     """
     if data_by_year is None:
         data_by_year = VA_DATA_BY_YEAR
@@ -1701,6 +1714,14 @@ def render_in_year_tabs(fig_or_builder, figure_key, source_cols=None, access_typ
                     msg += " The `ILM_Old/` folder is empty or missing next to the app."
                 st.info(msg)
                 continue
+            if row_filter is not None:
+                try:
+                    year_df = row_filter(year_df)
+                except Exception:
+                    year_df = year_df.iloc[0:0]
+                if year_df is None or year_df.empty:
+                    st.info(f"No rows for this scope in **{year_label}**.")
+                    continue
             try:
                 fig = fig_or_builder(year_df, year_label) if is_builder else fig_or_builder
             except Exception as e:
@@ -2041,18 +2062,16 @@ def create_download_button(fig, filename_base, col_keys=None, access_type="VA"):
 def create_enhanced_heatmap(df):
     """
     Implementation matrix — Research Infrastructure (rows) x Data Representation
-    (columns).
+    (columns) — the original layout the project prefers:
 
-    Ergonomic redesign:
-      * Cell SHADE now encodes the *share of services implemented* (0-100%) on a
-        calm blue-green sequential scale.  The old RdYlGn map painted low-count
-        cells RED, which read as a warning even when it only meant "few services
-        here" — that alarming red is gone.
-      * Empty cells (no services) are a neutral light grey, not red.
-      * Each populated cell is labelled "implemented / total" — no more stacked
-        boxes and ✓ badges.
-      * vmin/vmax are fixed to 0-1 so the same share is the same colour on every
-        year tab (consistent colour coding).
+      * each cell shows the TOTAL number of services in a white rounded box
+        (centre) and the IMPLEMENTED count with a ✓ in a small box (lower-left);
+      * the cell SHADE encodes the implemented count.
+
+    The only change from the historical version is the colour ramp: the old
+    `RdYlGn` map painted low cells RED (which read as a warning).  It is replaced
+    by a calm light-blue -> navy sequential ramp — no red anywhere — with the
+    green ✓ corner standing out cleanly against it.
     """
     if df is None or df.empty:
         return None
@@ -2092,58 +2111,51 @@ def create_enhanced_heatmap(df):
                     lambda x: standardize_implementation_value(x) == 'Implemented'))).sum())
                 implemented_matrix[i, j] = impl
 
-    # Share implemented; NaN where no services so those cells stay neutral grey.
-    with np.errstate(divide='ignore', invalid='ignore'):
-        share = np.where(total_matrix > 0, implemented_matrix / total_matrix, np.nan)
-    empty_mask = ~(total_matrix > 0)
+    # Calm light-blue -> navy sequential ramp (NO red), replacing RdYlGn.
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list(
+        "ilm_blue", ["#eef4fb", "#cfe0f4", "#9cc0e6", "#5b9bd5", "#2563eb", "#1f3a5f"])
 
-    # Calm blue -> green sequential colourmap (NO red).
-    try:
-        cmap = sns.color_palette("crest", as_cmap=True)
-    except Exception:
-        from matplotlib.colors import LinearSegmentedColormap
-        cmap = LinearSegmentedColormap.from_list(
-            "ilm_calm", ["#e8eef6", "#9cc0e0", "#3f86c4", "#0e9f6e"])
+    fig_h = max(8.0, 0.62 * len(ris) + 3.0)
+    fig, ax = plt.subplots(figsize=(16, fig_h), dpi=100)
 
-    fig_h = max(5.5, 0.55 * len(ris) + 2.5)
-    fig, ax = plt.subplots(figsize=(14, fig_h), dpi=100)
-    ax.set_facecolor('#eef2f7')   # colour shown for empty (masked) cells
-
-    sns.heatmap(share, mask=empty_mask, cmap=cmap, vmin=0, vmax=1,
-                cbar=True, linewidths=1.4, linecolor="white",
+    sns.heatmap(implemented_matrix, cmap=cmap, cbar=True,
+                linewidths=1.5, linecolor="white",
                 xticklabels=drs, yticklabels=ris, ax=ax,
-                cbar_kws={'label': 'Share of services implemented', 'shrink': 0.7})
+                cbar_kws={'label': 'Implemented services (count)', 'shrink': 0.8})
 
-    # Percentage ticks on the colour bar.
-    try:
-        from matplotlib.ticker import PercentFormatter
-        cbar = ax.collections[0].colorbar
-        cbar.ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
-    except Exception:
-        pass
-
-    # Annotate each populated cell with "implemented / total".
+    # Annotations: total count (centre, white box) + implemented ✓ (lower-left).
+    vmax = implemented_matrix.max() if implemented_matrix.size else 0
     for i in range(len(ris)):
         for j in range(len(drs)):
-            t = int(total_matrix[i, j])
-            if t <= 0:
+            if total_matrix[i, j] <= 0:
                 continue
-            im = int(implemented_matrix[i, j])
-            sh = share[i, j]
-            txt_color = 'white' if (not np.isnan(sh) and sh >= 0.55) else '#0f172a'
-            ax.text(j + 0.5, i + 0.5, f'{im}/{t}',
-                    ha='center', va='center', color=txt_color,
-                    fontsize=13, fontweight='bold')
+            ax.text(j + 0.5, i + 0.5, f'{int(total_matrix[i, j])}',
+                    ha='center', va='center',
+                    color='#0f172a', fontsize=16, fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white',
+                              edgecolor='#94a3b8', alpha=0.95, linewidth=1.5))
+            ax.text(j + 0.18, i + 0.82, f'{int(implemented_matrix[i, j])}\u2713',
+                    ha='center', va='center',
+                    color='#145A32', fontsize=11, fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.2', facecolor='#A9DFBF',
+                              edgecolor='#145A32', alpha=0.95, linewidth=1.5))
 
-    ax.set_title('Implementation Matrix  —  Research Infrastructure  ×  Data Representation\n'
-                 'Cell shade = share of services implemented    ·    label = implemented / total',
-                 pad=16, fontsize=15, fontweight='bold', loc='left')
-    ax.set_xlabel('Data Representation', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Research Infrastructure', fontsize=12, fontweight='bold')
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha='right', fontsize=10)
-    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=10)
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+    ax.set_title('Implementation Matrix Analysis\n'
+                 'Total Services (center)  |  Implemented Services (green corner)',
+                 pad=20, fontsize=18, fontweight='bold')
+    ax.set_xlabel('Data Representations', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Research Infrastructure', fontsize=14, fontweight='bold')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=11)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=11)
+
+    from matplotlib.patches import Rectangle
+    legend_elements = [
+        Rectangle((0, 0), 1, 1, fc='white', ec='#94a3b8', lw=1.5, label='Total services (center)'),
+        Rectangle((0, 0), 1, 1, fc='#A9DFBF', ec='#145A32', lw=1.5, label='Implemented (✓ corner)'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.15, 1),
+              fontsize=10, frameon=True, fancybox=True)
     plt.tight_layout()
     return fig
 
@@ -2341,6 +2353,137 @@ def create_professional_pie_chart(df, names, values, title, color_map=None):
                     traceorder="normal", bgcolor='rgba(0,0,0,0)'),
     )
     return fig
+
+# ===============================================================================================
+# PER-WORK-PACKAGE BREAKDOWN HELPERS
+# ===============================================================================================
+# The VA "Overview" is shown once for the whole project and then broken down per
+# Work Package.  WP values in the sheet look like "WP3 - VA2", "WP5 - TA2 / VA4"
+# … so we group by the leading "WPn" token.  Each per-WP figure reuses the same
+# chart factories (hence the same consistent colour coding) as the global view.
+import re as _re_wp
+
+
+def wp_token(value):
+    """Return the canonical 'WPn' token for a raw WP cell, or None."""
+    if value is None:
+        return None
+    m = _re_wp.match(r'\s*WP\s*0*(\d+)', str(value).strip(), _re_wp.I)
+    return f"WP{m.group(1)}" if m else None
+
+
+def wp_tokens_present(df):
+    """Sorted list of distinct 'WPn' tokens in a frame (numeric order)."""
+    if df is None or 'wp' not in df.columns:
+        return []
+    toks = {t for t in (wp_token(v) for v in df['wp'].dropna()) if t}
+    return sorted(toks, key=lambda t: int(t[2:]))
+
+
+def make_wp_filter(token):
+    """Return a `df -> df` filter keeping only rows whose WP matches `token`."""
+    def _f(d):
+        if d is None or 'wp' not in d.columns:
+            return d.iloc[0:0] if d is not None else d
+        keep = d['wp'].apply(lambda v: wp_token(v) == token)
+        return d[keep]
+    return _f
+
+
+# ── Reusable builders (df, year_label) -> figure ─────────────────────────────
+# These power the per-WP breakdown.  They go through the factory functions, so
+# every category keeps the SAME colour across years and across WPs.
+def build_ri_figure(_df, _yr):
+    items = value_counts_clean(_df.get('compliant_ri'))
+    if not items:
+        return None
+    d = pd.DataFrame(items, columns=['RI', 'Count'])
+    return create_professional_bar_chart(d, 'RI', 'Count',
+                                         'Research Infrastructures',
+                                         orientation='v',
+                                         color_palette=COLORS['blue_palette'])
+
+
+def build_impl_figure(_df, _yr):
+    if 'implementation_status' not in _df.columns:
+        return None
+    std = _df['implementation_status'].apply(standardize_implementation_value)
+    items = value_counts_clean(std)
+    if not items:
+        return None
+    d = pd.DataFrame(items, columns=['Status', 'Count'])
+    status_map = {
+        'Implemented': COLORS['implemented'],
+        'Partly implemented': COLORS['partly_implemented'],
+        'Planned': COLORS['planned'],
+        'Not implemented': COLORS['not_implemented'],
+        'Unknown': COLORS['unknown'],
+    }
+    return create_professional_donut_chart(d, 'Status', 'Count',
+                                           'Implementation Status',
+                                           color_map=status_map)
+
+
+def build_datarepr_figure(_df, _yr):
+    if 'data_repr' not in _df.columns:
+        return None
+    counts = {}
+    for val in _df['data_repr'].dropna():
+        for rep in str(val).split(','):
+            rep = rep.strip()
+            if rep and rep.lower() not in ['nan', 'unknown', 'none', '']:
+                counts[rep] = counts.get(rep, 0) + 1
+    if not counts:
+        return None
+    d = (pd.DataFrame(list(counts.items()), columns=['Type', 'Count'])
+           .sort_values('Count', ascending=True))
+    return create_professional_bar_chart(d, 'Count', 'Type',
+                                         'Data Representations',
+                                         orientation='h',
+                                         color_palette=COLORS['green_palette'])
+
+
+def build_metadata_figure(_df, _yr):
+    items = value_counts_clean(_df.get('metadata_standard'))
+    if not items:
+        return None
+    d = pd.DataFrame(items[:10], columns=['Standard', 'Count'])
+    return create_professional_bar_chart(d, 'Standard', 'Count',
+                                         'Metadata Standards',
+                                         orientation='v',
+                                         color_palette=COLORS['blue_palette'])
+
+
+def build_license_figure(_df, _yr):
+    items = value_counts_clean(_df.get('license'))
+    if not items:
+        return None
+    d = pd.DataFrame(items[:8], columns=['License', 'Count'])
+    return create_professional_pie_chart(d, 'License', 'Count', 'License Distribution')
+
+
+def render_va_overview_figures(scope_tag, row_filter=None):
+    """
+    Render the five key VA overview figures (each across the four year tabs),
+    optionally scoped by `row_filter`.  `scope_tag` namespaces the Plotly chart
+    keys so the same figure can appear for the whole project and for each WP.
+    """
+    specs = [
+        (build_impl_figure,     "impl",     ["implementation_status"],          "Implementation Status"),
+        (build_ri_figure,       "ri",       ["compliant_ri"],                   "Research Infrastructures"),
+        (build_datarepr_figure, "datarepr", ["data_repr"],                      "Data Representations"),
+        (build_metadata_figure, "metadata", ["metadata_standard"],              "Metadata Standards"),
+        (build_license_figure,  "license",  ["license"],                        "License Distribution"),
+    ]
+    cols = st.columns(2)
+    for idx, (builder, key, src, title) in enumerate(specs):
+        with cols[idx % 2]:
+            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+            render_in_year_tabs(builder, figure_key=f"{key}_{scope_tag}",
+                                source_cols=src, access_type="VA",
+                                figure_title=title, row_filter=row_filter)
+            st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ------------------------------- MAIN CONTENT -------------------------------
 
@@ -2743,9 +2886,46 @@ if selected == "Dashboard":
                     st.warning(f"Could not generate heatmap: {str(e)}")
             
             st.markdown("</div>", unsafe_allow_html=True)
+
+            # ============================================================
+            # PER-WORK-PACKAGE BREAKDOWN
+            # The whole-project Overview is shown above; below, the same key
+            # figures are repeated for each Work Package (grouped by WPn token).
+            # ============================================================
+            st.markdown("---")
+            st.markdown("## Overview by Work Package")
+            wp_list = wp_tokens_present(va_df)
+            if not wp_list:
+                st.info("No Work Package column detected, so a per-WP breakdown isn't available.")
+            else:
+                st.caption(
+                    "Each tab repeats the key Overview figures filtered to one Work Package. "
+                    "Colours match the whole-project view, so a category keeps the same colour "
+                    "across every WP and every year."
+                )
+                wp_tabs = st.tabs(wp_list)
+                for _wp, _wptab in zip(wp_list, wp_tabs):
+                    with _wptab:
+                        _filt = make_wp_filter(_wp)
+                        _wp_live = _filt(va_df)
+                        # WP-level KPI row (live / 2026 data).
+                        k1, k2, k3, k4 = st.columns(4)
+                        with k1:
+                            st.markdown(f"<div class='kpi'><h3>Services</h3><div class='val'>{len(_wp_live)}</div></div>", unsafe_allow_html=True)
+                        with k2:
+                            _impl = len(_wp_live[_wp_live['implementation_status'].apply(lambda x: standardize_implementation_value(x) == 'Implemented')]) if 'implementation_status' in _wp_live.columns else 0
+                            st.markdown(f"<div class='kpi'><h3>Implemented</h3><div class='val'>{_impl}</div></div>", unsafe_allow_html=True)
+                        with k3:
+                            _run = len(_wp_live[_wp_live['service_running'].apply(lambda x: standardize_binary_value(x) == 'Yes')]) if 'service_running' in _wp_live.columns else 0
+                            st.markdown(f"<div class='kpi'><h3>Running</h3><div class='val'>{_run}</div></div>", unsafe_allow_html=True)
+                        with k4:
+                            _ris = _wp_live['compliant_ri'].nunique() if 'compliant_ri' in _wp_live.columns else 0
+                            st.markdown(f"<div class='kpi'><h3>RIs</h3><div class='val'>{_ris}</div></div>", unsafe_allow_html=True)
+                        st.markdown("")
+                        render_va_overview_figures(scope_tag=f"wp_{_wp}", row_filter=_filt)
         else:
             st.warning("No Virtual Access data available")
-    
+
     else:  # Transnational Access
         if ta_df is not None and not ta_df.empty:
             # Work on the actual TA *projects* (rows with a project_id), not the
