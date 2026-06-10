@@ -177,6 +177,64 @@ CALL_PREFIXES   = {"Call 1": "TA1", "Call 2": "TA2", "Call 3": "TA3", "Call 4": 
 st.set_page_config(page_title="ILM Geo-INQUIRE Dashboard", layout="wide", initial_sidebar_state="expanded")
 
 # ===============================================================================================
+# EU FUNDING ACKNOWLEDGEMENT — official emblem + mandated sentence
+# ===============================================================================================
+# Defined HERE (above check_password) on purpose: the login / welcome page shows
+# this acknowledgement, and check_password() runs at import time, so these names
+# must already exist when the password gate is evaluated. (Defining them lower
+# in the file caused: NameError: name 'render_eu_acknowledgement' is not defined.)
+EU_FLAG_SVG = '''<svg viewBox="0 0 810 540" xmlns="http://www.w3.org/2000/svg" style="height:46px;width:auto;border-radius:3px;display:block;"><rect width="810" height="540" fill="#003399"/><path d="M405.0,54.0 L396.9,78.9 L370.8,78.9 L391.9,94.2 L383.8,119.1 L405.0,103.8 L426.2,119.1 L418.1,94.2 L439.2,78.9 L413.1,78.9 Z" fill="#FFCC00"/><path d="M495.0,78.1 L486.9,103.0 L460.8,103.0 L481.9,118.4 L473.8,143.2 L495.0,127.9 L516.2,143.2 L508.1,118.4 L529.2,103.0 L503.1,103.0 Z" fill="#FFCC00"/><path d="M560.9,144.0 L552.8,168.9 L526.6,168.9 L547.8,184.2 L539.7,209.1 L560.9,193.8 L582.0,209.1 L574.0,184.2 L595.1,168.9 L569.0,168.9 Z" fill="#FFCC00"/><path d="M585.0,234.0 L576.9,258.9 L550.8,258.9 L571.9,274.2 L563.8,299.1 L585.0,283.8 L606.2,299.1 L598.1,274.2 L619.2,258.9 L593.1,258.9 Z" fill="#FFCC00"/><path d="M560.9,324.0 L552.8,348.9 L526.6,348.9 L547.8,364.2 L539.7,389.1 L560.9,373.8 L582.0,389.1 L574.0,364.2 L595.1,348.9 L569.0,348.9 Z" fill="#FFCC00"/><path d="M495.0,389.9 L486.9,414.8 L460.8,414.8 L481.9,430.1 L473.8,455.0 L495.0,439.6 L516.2,455.0 L508.1,430.1 L529.2,414.8 L503.1,414.8 Z" fill="#FFCC00"/><path d="M405.0,414.0 L396.9,438.9 L370.8,438.9 L391.9,454.2 L383.8,479.1 L405.0,463.8 L426.2,479.1 L418.1,454.2 L439.2,438.9 L413.1,438.9 Z" fill="#FFCC00"/><path d="M315.0,389.9 L306.9,414.8 L280.8,414.8 L301.9,430.1 L293.8,455.0 L315.0,439.6 L336.2,455.0 L328.1,430.1 L349.2,414.8 L323.1,414.8 Z" fill="#FFCC00"/><path d="M249.1,324.0 L241.0,348.9 L214.9,348.9 L236.0,364.2 L228.0,389.1 L249.1,373.8 L270.3,389.1 L262.2,364.2 L283.4,348.9 L257.2,348.9 Z" fill="#FFCC00"/><path d="M225.0,234.0 L216.9,258.9 L190.8,258.9 L211.9,274.2 L203.8,299.1 L225.0,283.8 L246.2,299.1 L238.1,274.2 L259.2,258.9 L233.1,258.9 Z" fill="#FFCC00"/><path d="M249.1,144.0 L241.0,168.9 L214.9,168.9 L236.0,184.2 L228.0,209.1 L249.1,193.8 L270.3,209.1 L262.2,184.2 L283.4,168.9 L257.2,168.9 Z" fill="#FFCC00"/><path d="M315.0,78.1 L306.9,103.0 L280.8,103.0 L301.9,118.4 L293.8,143.2 L315.0,127.9 L336.2,143.2 L328.1,118.4 L349.2,103.0 L323.1,103.0 Z" fill="#FFCC00"/></svg>'''
+
+# The exact acknowledgement sentence Geo-INQUIRE asks partners to use.
+GEOINQUIRE_ACK_SENTENCE = (
+    "Geo-INQUIRE is funded by the European Commission under project number "
+    "101058518 within the HORIZON-INFRA-2021-SERV-01 call."
+)
+
+
+def render_eu_acknowledgement(variant="footer"):
+    """
+    Render the EU funding acknowledgement.
+
+    variant="login"  -> "How to acknowledge Geo-INQUIRE" card on the welcome /
+                         password page (light, on-brand).
+    variant="footer" -> full-width green banner at the bottom of each page.
+    """
+    if variant == "login":
+        st.markdown(
+            '<div style="margin-top:1.5rem; padding:1.1rem 1.25rem; border-radius:14px;'
+            ' background:linear-gradient(135deg,#eff4ff 0%,#ffffff 60%);'
+            ' border:1px solid #dbe4f3; display:flex; align-items:flex-start; gap:1rem;'
+            ' box-shadow:0 4px 14px rgba(15,23,42,0.05);">'
+            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
+            '<div style="font-size:0.8rem; color:#475569; line-height:1.5;">'
+            '<div style="font-size:0.95rem; font-weight:800; color:#1f3a5f; margin-bottom:0.25rem;">'
+            'How to acknowledge Geo-INQUIRE</div>'
+            '<span style="font-weight:600; color:#1f3a5f;">Funded by the European Union.</span> '
+            'Please acknowledge Geo-INQUIRE using this sentence:<br>'
+            '<em>&ldquo;' + GEOINQUIRE_ACK_SENTENCE + '&rdquo;</em>'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div style="margin-top:2.5rem; padding:1.5rem 1.75rem; border-radius:14px;'
+            ' background:linear-gradient(135deg,#5a9367 0%,#6aa877 100%); color:#ffffff;">'
+            '<div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">'
+            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
+            '<div style="flex:1 1 280px; min-width:240px;">'
+            '<div style="font-size:1rem; font-weight:800; margin-bottom:0.35rem;">'
+            'How to acknowledge Geo-INQUIRE</div>'
+            '<div style="font-size:0.85rem; line-height:1.5; opacity:0.97;">'
+            'Please acknowledge Geo-INQUIRE using this sentence:<br>'
+            '<em>&ldquo;' + GEOINQUIRE_ACK_SENTENCE + '&rdquo;</em>'
+            '</div></div></div></div>',
+            unsafe_allow_html=True,
+        )
+
+
+
+# ===============================================================================================
 # PASSWORD PROTECTION SYSTEM
 # ===============================================================================================
 # Implements secure password-based authentication for dashboard access
@@ -385,54 +443,74 @@ YEAR_TABS = YEAR_TAB_KEYS
 
 
 # ===============================================================================================
-# EU FUNDING ACKNOWLEDGEMENT — official emblem + mandated sentence
+# CONSISTENT COLOUR CODING  (same category → same colour on EVERY year / call tab)
 # ===============================================================================================
-# Horizon Europe grants require visible acknowledgement of EU funding using the
-# emblem and the standard sentence.  The flag below is an inline SVG (12 gold
-# stars on blue) so it renders without any external image dependency.
-EU_FLAG_SVG = '''<svg viewBox="0 0 810 540" xmlns="http://www.w3.org/2000/svg" style="height:46px;width:auto;border-radius:3px;display:block;"><rect width="810" height="540" fill="#003399"/><path d="M405.0,54.0 L396.9,78.9 L370.8,78.9 L391.9,94.2 L383.8,119.1 L405.0,103.8 L426.2,119.1 L418.1,94.2 L439.2,78.9 L413.1,78.9 Z" fill="#FFCC00"/><path d="M495.0,78.1 L486.9,103.0 L460.8,103.0 L481.9,118.4 L473.8,143.2 L495.0,127.9 L516.2,143.2 L508.1,118.4 L529.2,103.0 L503.1,103.0 Z" fill="#FFCC00"/><path d="M560.9,144.0 L552.8,168.9 L526.6,168.9 L547.8,184.2 L539.7,209.1 L560.9,193.8 L582.0,209.1 L574.0,184.2 L595.1,168.9 L569.0,168.9 Z" fill="#FFCC00"/><path d="M585.0,234.0 L576.9,258.9 L550.8,258.9 L571.9,274.2 L563.8,299.1 L585.0,283.8 L606.2,299.1 L598.1,274.2 L619.2,258.9 L593.1,258.9 Z" fill="#FFCC00"/><path d="M560.9,324.0 L552.8,348.9 L526.6,348.9 L547.8,364.2 L539.7,389.1 L560.9,373.8 L582.0,389.1 L574.0,364.2 L595.1,348.9 L569.0,348.9 Z" fill="#FFCC00"/><path d="M495.0,389.9 L486.9,414.8 L460.8,414.8 L481.9,430.1 L473.8,455.0 L495.0,439.6 L516.2,455.0 L508.1,430.1 L529.2,414.8 L503.1,414.8 Z" fill="#FFCC00"/><path d="M405.0,414.0 L396.9,438.9 L370.8,438.9 L391.9,454.2 L383.8,479.1 L405.0,463.8 L426.2,479.1 L418.1,454.2 L439.2,438.9 L413.1,438.9 Z" fill="#FFCC00"/><path d="M315.0,389.9 L306.9,414.8 L280.8,414.8 L301.9,430.1 L293.8,455.0 L315.0,439.6 L336.2,455.0 L328.1,430.1 L349.2,414.8 L323.1,414.8 Z" fill="#FFCC00"/><path d="M249.1,324.0 L241.0,348.9 L214.9,348.9 L236.0,364.2 L228.0,389.1 L249.1,373.8 L270.3,389.1 L262.2,364.2 L283.4,348.9 L257.2,348.9 Z" fill="#FFCC00"/><path d="M225.0,234.0 L216.9,258.9 L190.8,258.9 L211.9,274.2 L203.8,299.1 L225.0,283.8 L246.2,299.1 L238.1,274.2 L259.2,258.9 L233.1,258.9 Z" fill="#FFCC00"/><path d="M249.1,144.0 L241.0,168.9 L214.9,168.9 L236.0,184.2 L228.0,209.1 L249.1,193.8 L270.3,209.1 L262.2,184.2 L283.4,168.9 L257.2,168.9 Z" fill="#FFCC00"/><path d="M315.0,78.1 L306.9,103.0 L280.8,103.0 L301.9,118.4 L293.8,143.2 L315.0,127.9 L336.2,143.2 L328.1,118.4 L349.2,103.0 L323.1,103.0 Z" fill="#FFCC00"/></svg>'''
+# Charts used to colour slices/bars by POSITION (palette[i]).  Because the slice
+# order depends on per-year counts, a category like "Not implemented" could be
+# red in 2026 but a different colour in 2025.  `resolve_colors()` fixes this:
+#   1. caller-supplied color_map wins (case-insensitive),
+#   2. then a fixed CANONICAL_COLORS lookup for status / yes-no / access labels,
+#   3. otherwise a deterministic slot in a stable palette, indexed by the
+#      label's rank among the *sorted* unique labels — so the SAME label always
+#      gets the SAME colour, no matter the ordering or the year.
+CANONICAL_COLORS = {
+    # implementation status
+    'implemented'        : '#0e9f6e',   # emerald
+    'partly implemented' : '#2563eb',   # blue
+    'partially implemented': '#2563eb',
+    'planned'            : '#d97706',   # amber
+    'not implemented'    : '#dc2626',   # red (reserved for the genuine "not done")
+    'unknown'            : '#94a3b8',   # slate-grey
+    # yes / no / progress
+    'yes'         : '#0e9f6e',
+    'no'          : '#dc2626',
+    'partially'   : '#2563eb',
+    'in progress' : '#0891b2',
+    'n/a'         : '#94a3b8',
+    # access / data policy
+    'open'             : '#0e9f6e',
+    'open access'      : '#0e9f6e',
+    'restricted'       : '#dc2626',
+    'embargoed'        : '#d97706',
+    'to be determined' : '#94a3b8',
+}
 
-# The exact acknowledgement sentence Geo-INQUIRE asks partners to use.
-GEOINQUIRE_ACK_SENTENCE = (
-    "Geo-INQUIRE is funded by the European Commission under project number "
-    "101058518 within the HORIZON-INFRA-2021-SERV-01 call."
-)
+# A fixed, harmonious palette for every "other" categorical label.  It is indexed
+# by the label's rank in the sorted unique set, which makes the assignment stable
+# across year/call tabs.
+STABLE_PALETTE = ['#1f3a5f', '#2563eb', '#0e9f6e', '#d97706', '#7c3aed',
+                  '#0891b2', '#db2777', '#475569', '#3b82f6', '#10b981',
+                  '#f59e0b', '#6366f1', '#14b8a6', '#8b5cf6', '#0ea5e9']
 
 
-def render_eu_acknowledgement(variant="footer"):
+def resolve_colors(labels, color_map=None, palette=None):
     """
-    Render the EU funding acknowledgement.
+    Map category labels -> colours so the SAME label always gets the SAME colour
+    regardless of ordering (i.e. consistent across every year / call tab).
 
-    variant="footer"  -> full-width green banner used at the bottom of each page.
-    variant="login"   -> compact light card used on the password / welcome page.
+    Parameters
+    ----------
+    labels    : iterable of category labels (the slice / bar labels).
+    color_map : optional {label: colour} from the caller (case-insensitive).
+    palette   : optional list used for the deterministic fallback.  When given
+                (e.g. a chart that wants to stay "all blues"), CANONICAL_COLORS
+                is skipped and colours come from this palette by sorted-rank.
     """
-    if variant == "login":
-        st.markdown(
-            '<div style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:12px;'
-            ' background:#ffffff; border:1px solid #e2e8f0;'
-            ' display:flex; align-items:center; gap:1rem;">'
-            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
-            '<div style="font-size:0.78rem; color:#475569; line-height:1.45;">'
-            '<strong style="color:#1f3a5f;">Funded by the European Union</strong><br>'
-            + GEOINQUIRE_ACK_SENTENCE +
-            '</div></div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="margin-top:2.5rem; padding:1.5rem 1.75rem; border-radius:14px;'
-            ' background:linear-gradient(135deg,#5a9367 0%,#6aa877 100%); color:#ffffff;">'
-            '<div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">'
-            '<div style="flex:0 0 auto;">' + EU_FLAG_SVG + '</div>'
-            '<div style="flex:1 1 280px; min-width:240px;">'
-            '<div style="font-size:1rem; font-weight:800; margin-bottom:0.35rem;">'
-            'How to acknowledge Geo-INQUIRE</div>'
-            '<div style="font-size:0.85rem; line-height:1.5; opacity:0.97;">'
-            'Please acknowledge Geo-INQUIRE using this sentence:<br>'
-            '<em>&ldquo;' + GEOINQUIRE_ACK_SENTENCE + '&rdquo;</em>'
-            '</div></div></div></div>',
-            unsafe_allow_html=True,
-        )
+    labels = ["" if l is None else str(l) for l in labels]
+    ordered_unique = sorted(set(labels))
+    rank = {lab: i for i, lab in enumerate(ordered_unique)}
+    cmap_ci = {str(k).strip().lower(): v for k, v in (color_map or {}).items()}
+    pal = palette if palette else STABLE_PALETTE
+    out = []
+    for lab in labels:
+        key = lab.strip().lower()
+        if key in cmap_ci:
+            out.append(cmap_ci[key])
+        elif (palette is None) and (key in CANONICAL_COLORS):
+            out.append(CANONICAL_COLORS[key])
+        else:
+            out.append(pal[rank[lab] % len(pal)])
+    return out
 
 
 # ===============================================================================================
@@ -889,20 +967,60 @@ def load_excel_data():
 # ===============================================================================================
 def _apply_va_column_renames(df):
     """
-    Normalise VA column names across all historical and current workbooks.
-    Covers three vintages of the ILM matrix (2023 / 2024 / 2025+).
+    Normalise VA column names across ALL workbook vintages (2023 / 2024 / 2025 /
+    2026) onto a single internal schema, so the SAME charts work on every year
+    tab.
+
+    This now mirrors the column handling in load_excel_data() /
+    load_google_sheets_data(), so the historical-year frames expose the same
+    DERIVED columns the Analytics charts need (service_running, api_standard,
+    parametrization, fully_described, payloads, converter_plugin, …).
+
+    BUG THIS FIXES: previously only contact/RI/impl-status/data-repr/license/
+    metadata were renamed for the historical snapshots.  The binary "[0;1]"
+    columns and "(OGC, ERDDAP, etc)" were never mapped, so on the 2023/2024/2025
+    tabs charts such as "Service Running" and "Api Standards" reported
+    "No data for … in <year>" even though the data was present.
     """
+    # 1) Short, stable header names -> internal names (exact match).  The nine
+    #    binary columns deduplicate to "[0;1]", "[0;1].1", … "[0;1].8" when
+    #    pandas reads the 4-row header, identically for every vintage.
     rename_map = {
         "TCS Name"                      : "contact_person",
         "Service Group Name"            : "affiliation",
-        "Research infrastructure (RI)"  : "compliant_ri",
         "Contact person"                : "contact_person",
         "Email"                         : "email",
         "Affiliation"                   : "affiliation",
         "Service/Installation Name"     : "service_name",
-        "Compliant with Research infrastructure (RI)": "compliant_ri",
+        "Research infrastructure (RI)"  : "compliant_ri",            # 2023 vintage
+        "Compliant with Research infrastructure (RI)": "compliant_ri",  # 2024/25/26
+        "Installation ID"               : "installation_id",
+        "Service ID"                    : "service_id",
+        "WP"                            : "wp",
+        "Service Response Formats"      : "response_formats",
+        "License"                       : "license",
+        "Installation URL"              : "installation_url",
+        "Scientific domain/category"    : "domain",
+        "URL of the service endpoint"   : "endpoint_url",
+        "(OGC, ERDDAP, etc)"            : "api_standard",
+        "URL"                           : "documentation_url",
+        "[e.g. OAuth, SAML, API access token, none]": "auth_method",
+        "[open; restricted; embargoed]" : "data_policy",
+        "[0;1]"   : "service_running",
+        "[0;1].1" : "parametrization",
+        "[0;1].2" : "provides_data",
+        "[0;1].3" : "license_exists",
+        "[0;1].4" : "fully_described",
+        "[0;1].5" : "qp_documentation",
+        "[0;1].6" : "data_quality",
+        "[0;1].7" : "payloads",
+        "[0;1].8" : "converter_plugin",
+        "[0, not implemented; 0.2 planned; \n0.5, partly implemented; 1, implemented]": "documentation_status",
+        "[1-9]"   : "trl",
     }
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+
+    # 2) Long / whitespace-variable header names -> internal names (substring).
     long_renames = {}
     for c in df.columns:
         s = str(c).lower()
@@ -910,13 +1028,53 @@ def _apply_va_column_renames(df):
             long_renames[c] = "implementation_status"
         elif "data representations" in s:
             long_renames[c] = "data_repr"
-        elif s.strip() == "license":
-            long_renames[c] = "license"
         elif "standard of metadata describing the service" in s:
             long_renames[c] = "metadata_standard"
         elif "gender" in s and "pi" not in s:
             long_renames[c] = "gender"
     df = df.rename(columns=long_renames)
+
+    # 3) Positional fallback for the nine binary columns — only fills slots the
+    #    name-map above did not already create (insurance against a vintage that
+    #    names them differently than the canonical "[0;1]" / "[0;1].N").
+    binary_targets = ["service_running", "parametrization", "provides_data",
+                      "license_exists", "fully_described", "qp_documentation",
+                      "data_quality", "payloads", "converter_plugin"]
+    cols = list(df.columns)
+    zero_one_idx = [i for i, c in enumerate(cols)
+                    if str(c).strip().lower().startswith("[0;1]")]
+    for slot, idx in enumerate(zero_one_idx):
+        if slot < len(binary_targets) and binary_targets[slot] not in df.columns:
+            cols[idx] = binary_targets[slot]
+    df.columns = cols
+
+    # 4) De-duplicate any names that collided during renaming.
+    cols = pd.Series(df.columns)
+    for dup in cols[cols.duplicated()].unique():
+        dup_idx = [i for i, x in enumerate(cols) if x == dup]
+        for k, idx in enumerate(dup_idx[1:], start=1):
+            cols[idx] = f"{dup}_{k}"
+    df.columns = cols
+
+    # 5) Coerce status / binary columns to numeric so the standardisers behave
+    #    identically to the live data path (treats "[request]"/"TBD"/"" as NaN).
+    def _clean_numeric(val):
+        if pd.isna(val):
+            return np.nan
+        if isinstance(val, str):
+            if val.strip().lower() in ['[request]', 'request', 'tbd',
+                                       'to be determined', '']:
+                return np.nan
+            try:
+                return float(val)
+            except Exception:
+                return np.nan
+        return float(val) if isinstance(val, (int, float)) else np.nan
+
+    for col in ["implementation_status", "documentation_status"] + binary_targets:
+        if col in df.columns:
+            df[col] = df[col].apply(_clean_numeric)
+
     return df
 
 
@@ -1881,106 +2039,111 @@ def create_download_button(fig, filename_base, col_keys=None, access_type="VA"):
 
 # ------------------------------- Enhanced Complex Heatmap -------------------------------
 def create_enhanced_heatmap(df):
-    """Create a professional heatmap with enhanced styling showing implementation matrix"""
+    """
+    Implementation matrix — Research Infrastructure (rows) x Data Representation
+    (columns).
+
+    Ergonomic redesign:
+      * Cell SHADE now encodes the *share of services implemented* (0-100%) on a
+        calm blue-green sequential scale.  The old RdYlGn map painted low-count
+        cells RED, which read as a warning even when it only meant "few services
+        here" — that alarming red is gone.
+      * Empty cells (no services) are a neutral light grey, not red.
+      * Each populated cell is labelled "implemented / total" — no more stacked
+        boxes and ✓ badges.
+      * vmin/vmax are fixed to 0-1 so the same share is the same colour on every
+        year tab (consistent colour coding).
+    """
     if df is None or df.empty:
         return None
-    
-    # Use the correct column names from our data
     if 'compliant_ri' not in df.columns or 'implementation_status' not in df.columns:
         return None
-    
-    # Prepare data
+
     ris = sorted([x for x in df['compliant_ri'].unique() if pd.notna(x)])
-    
-    # Get data representations
+    if not ris:
+        return None
+
+    # Data representations (columns) — top few distinct values.
     if 'data_repr' in df.columns:
         drs_all = []
         for val in df['data_repr'].dropna():
-            parts = str(val).split(',')
-            for rep in parts:
+            for rep in str(val).split(','):
                 rep = rep.strip()
-                if rep and rep not in drs_all and rep.lower() not in ['nan', 'unknown', 'none']:
+                if rep and rep not in drs_all and rep.lower() not in ['nan', 'unknown', 'none', '']:
                     drs_all.append(rep)
-        # Take top 6 most common
         drs = sorted(drs_all[:6]) if drs_all else ['Georeferenced', 'Time-series', 'Software']
     else:
         drs = ['Georeferenced', 'Time-series', 'Software']
-    
-    # Create matrices
+
     total_matrix = np.zeros((len(ris), len(drs)))
     implemented_matrix = np.zeros((len(ris), len(drs)))
-    
     for i, ri in enumerate(ris):
         for j, dr in enumerate(drs):
-            # Count services for this RI and data representation.
             mask = (df['compliant_ri'] == ri)
             if 'data_repr' in df.columns:
-                # `dr` may contain regex-special characters (e.g. "time-series",
-                # "georeferenced/non-georeferenced"). Pass `regex=False` to treat
-                # the needle as a literal substring — this also silences the
-                # "pattern is interpreted as a regular expression, and has match
-                # groups" UserWarning that pandas emits for parenthesised values.
-                mask = mask & (
-                    df['data_repr'].astype(str)
-                                   .str.contains(dr, na=False, case=False, regex=False)
-                )
-            
-            total_count = mask.sum()
-            total_matrix[i, j] = total_count
-            
-            if total_count > 0:
-                # Count implemented services
-                impl_mask = mask & (df['implementation_status'].apply(
-                    lambda x: standardize_implementation_value(x) == 'Implemented'
-                ))
-                impl_count = impl_mask.sum()
-                implemented_matrix[i, j] = impl_count
-    
-    # Create figure with matplotlib
-    fig, ax = plt.subplots(figsize=(16, 10), dpi=100)
-    
-    # Use seaborn for the heatmap
-    sns.heatmap(implemented_matrix, cmap="RdYlGn", cbar=True, linewidths=1.5, linecolor="white", 
+                # regex=False -> treat `dr` as a literal substring (it may contain
+                # "/", "-", parentheses) and silence pandas' match-group warning.
+                mask = mask & (df['data_repr'].astype(str)
+                                 .str.contains(dr, na=False, case=False, regex=False))
+            total = int(mask.sum())
+            total_matrix[i, j] = total
+            if total > 0:
+                impl = int((mask & (df['implementation_status'].apply(
+                    lambda x: standardize_implementation_value(x) == 'Implemented'))).sum())
+                implemented_matrix[i, j] = impl
+
+    # Share implemented; NaN where no services so those cells stay neutral grey.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        share = np.where(total_matrix > 0, implemented_matrix / total_matrix, np.nan)
+    empty_mask = ~(total_matrix > 0)
+
+    # Calm blue -> green sequential colourmap (NO red).
+    try:
+        cmap = sns.color_palette("crest", as_cmap=True)
+    except Exception:
+        from matplotlib.colors import LinearSegmentedColormap
+        cmap = LinearSegmentedColormap.from_list(
+            "ilm_calm", ["#e8eef6", "#9cc0e0", "#3f86c4", "#0e9f6e"])
+
+    fig_h = max(5.5, 0.55 * len(ris) + 2.5)
+    fig, ax = plt.subplots(figsize=(14, fig_h), dpi=100)
+    ax.set_facecolor('#eef2f7')   # colour shown for empty (masked) cells
+
+    sns.heatmap(share, mask=empty_mask, cmap=cmap, vmin=0, vmax=1,
+                cbar=True, linewidths=1.4, linecolor="white",
                 xticklabels=drs, yticklabels=ris, ax=ax,
-                cbar_kws={'label': 'Implemented Services', 'shrink': 0.8})
-    
-    # Add annotations
+                cbar_kws={'label': 'Share of services implemented', 'shrink': 0.7})
+
+    # Percentage ticks on the colour bar.
+    try:
+        from matplotlib.ticker import PercentFormatter
+        cbar = ax.collections[0].colorbar
+        cbar.ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+    except Exception:
+        pass
+
+    # Annotate each populated cell with "implemented / total".
     for i in range(len(ris)):
         for j in range(len(drs)):
-            if total_matrix[i,j] > 0:
-                # Total count - center, large and bold
-                ax.text(j+0.5, i+0.5, f'{int(total_matrix[i,j])}', 
-                       ha='center', va='center',
-                       color='black', fontsize=16, fontweight='bold',
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
-                                edgecolor='gray', alpha=0.9, linewidth=2))
-                
-                # Implemented count - bottom left corner
-                ax.text(j+0.18, i+0.82, f'{int(implemented_matrix[i,j])}✓', 
-                       ha='center', va='center',
-                       color='#145A32', fontsize=11, fontweight='bold',
-                       bbox=dict(boxstyle='round,pad=0.2', facecolor='#A9DFBF', 
-                                edgecolor='#145A32', alpha=0.9, linewidth=1.5))
-    
-    # Enhanced title and labels
-    ax.set_title('Implementation Matrix Analysis\nTotal Services (center) | Implemented Services (green corner)', 
-                pad=20, fontsize=18, fontweight='bold', family='Arial')
-    ax.set_xlabel('Data Representations', fontsize=14, fontweight='bold', family='Arial')
-    ax.set_ylabel('Research Infrastructure', fontsize=14, fontweight='bold', family='Arial')
-    
-    # Improve tick labels
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=11, family='Arial')
-    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=11, family='Arial')
-    
-    # Add legend
-    from matplotlib.patches import Rectangle
-    legend_elements = [
-        Rectangle((0, 0), 1, 1, fc='white', ec='gray', lw=2, label='Total Services (center)'),
-        Rectangle((0, 0), 1, 1, fc='#A9DFBF', ec='#145A32', lw=1.5, label='Implemented (green corner)')
-    ]
-    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.15, 1), 
-             fontsize=10, frameon=True, fancybox=True, shadow=True)
-    
+            t = int(total_matrix[i, j])
+            if t <= 0:
+                continue
+            im = int(implemented_matrix[i, j])
+            sh = share[i, j]
+            txt_color = 'white' if (not np.isnan(sh) and sh >= 0.55) else '#0f172a'
+            ax.text(j + 0.5, i + 0.5, f'{im}/{t}',
+                    ha='center', va='center', color=txt_color,
+                    fontsize=13, fontweight='bold')
+
+    ax.set_title('Implementation Matrix  —  Research Infrastructure  ×  Data Representation\n'
+                 'Cell shade = share of services implemented    ·    label = implemented / total',
+                 pad=16, fontsize=15, fontweight='bold', loc='left')
+    ax.set_xlabel('Data Representation', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Research Infrastructure', fontsize=12, fontweight='bold')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha='right', fontsize=10)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=10)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     plt.tight_layout()
     return fig
 
@@ -2002,10 +2165,24 @@ def create_professional_bar_chart(df, x, y, title, orientation='v', color_palett
     if color_palette is None:
         color_palette = COLORS['blue_palette']
 
+    # Colour by category label (consistent across every year/call tab):
+    #   dict  -> caller status map (canonical red/green/etc.)
+    #   str   -> single solid colour for every bar
+    #   list  -> deterministic slot from this palette by sorted-rank
+    cats = list(df[x] if orientation == 'v' else df[y])
+    if isinstance(color_palette, dict):
+        bar_colors = resolve_colors(cats, color_map=color_palette)
+    elif isinstance(color_palette, str):
+        bar_colors = [color_palette] * len(cats)
+    elif isinstance(color_palette, list):
+        bar_colors = resolve_colors(cats, palette=color_palette)
+    else:
+        bar_colors = resolve_colors(cats, palette=COLORS['blue_palette'])
+
     fig = go.Figure()
     bar_kwargs = dict(
         marker=dict(
-            color=color_palette if isinstance(color_palette, list) else [color_palette] * len(df),
+            color=bar_colors,
             line=dict(width=0),
         ),
         textfont=dict(size=12, family=FONT_FAMILY, color=COLORS['secondary']),
@@ -2081,11 +2258,9 @@ def create_professional_donut_chart(df, names, values, title, color_map=None):
     labels = [a for a, _ in filtered]
     vals   = [b for _, b in filtered]
 
-    if color_map:
-        colors = [color_map.get(name, COLORS['multi_palette'][i % len(COLORS['multi_palette'])])
-                  for i, name in enumerate(labels)]
-    else:
-        colors = (COLORS['multi_palette'] * (len(labels) // len(COLORS['multi_palette']) + 1))[:len(labels)]
+    # Same label -> same colour on every tab (canonical map first, then a
+    # deterministic sorted-rank fallback).
+    colors = resolve_colors(labels, color_map=color_map)
 
     fig = go.Figure()
     fig.add_trace(go.Pie(
@@ -2136,11 +2311,8 @@ def create_professional_pie_chart(df, names, values, title, color_map=None):
     labels = [a for a, _ in filtered]
     vals   = [b for _, b in filtered]
 
-    if color_map:
-        colors = [color_map.get(name, COLORS['multi_palette'][i % len(COLORS['multi_palette'])])
-                  for i, name in enumerate(labels)]
-    else:
-        colors = (COLORS['multi_palette'] * (len(labels) // len(COLORS['multi_palette']) + 1))[:len(labels)]
+    # Same label -> same colour on every tab.
+    colors = resolve_colors(labels, color_map=color_map)
 
     fig = go.Figure()
     fig.add_trace(go.Pie(
@@ -2221,7 +2393,7 @@ if selected == "Dashboard":
                         x=ri_data['RI'],
                         y=ri_data['Count'],
                         marker=dict(
-                            color=COLORS['blue_palette'][:len(ri_data)],
+                            color=resolve_colors(ri_data['RI'], palette=COLORS['blue_palette']),
                             line=dict(width=0)
                         ),
                         text=ri_data['Count'],
@@ -2274,7 +2446,7 @@ if selected == "Dashboard":
                         'Not implemented': COLORS['not_implemented'],
                         'Unknown': COLORS['unknown']
                     }
-                    colors = [color_map.get(s, COLORS['info']) for s in impl_data['Status']]
+                    colors = resolve_colors(impl_data['Status'], color_map=color_map)
                     
                     fig_impl = go.Figure()
                     fig_impl.add_trace(go.Pie(
@@ -2355,7 +2527,7 @@ if selected == "Dashboard":
                         y=data_repr_data['Type'],
                         orientation='h',
                         marker=dict(
-                            color=COLORS['green_palette'][:len(data_repr_data)],
+                            color=resolve_colors(data_repr_data['Type'], palette=COLORS['green_palette']),
                             line=dict(width=0)
                         ),
                         text=data_repr_data['Count'],
@@ -2427,7 +2599,7 @@ if selected == "Dashboard":
                     fig_license.add_trace(go.Pie(
                         labels=license_data['License'],
                         values=license_data['Count'],
-                        marker=dict(colors=COLORS['multi_palette'][:len(license_data)], line=dict(color='white', width=2.5)),
+                        marker=dict(colors=resolve_colors(license_data['License']), line=dict(color='white', width=2.5)),
                         textinfo='label+percent',
                         textposition='outside',
                         textfont=dict(size=12, family=FONT_FAMILY, color=COLORS['dark']),
@@ -2481,7 +2653,7 @@ if selected == "Dashboard":
                     x=metadata_data['Standard'],
                     y=metadata_data['Count'],
                     marker=dict(
-                        color=COLORS['blue_palette'][:len(metadata_data)],
+                        color=resolve_colors(metadata_data['Standard'], palette=COLORS['blue_palette']),
                         line=dict(width=0)
                     ),
                     text=metadata_data['Count'],
@@ -2899,7 +3071,7 @@ elif selected == "Analytics":
                     fig_doc = create_professional_bar_chart(doc_data, 'Status', 'Count',
                                                            'Documentation Status',
                                                            orientation='v',
-                                                           color_palette=[color_map.get(s, COLORS['info']) for s in doc_data['Status']])
+                                                           color_palette=color_map)
                     return fig_doc
                 render_in_year_tabs(
                     _builder,
@@ -3066,7 +3238,7 @@ elif selected == "Analytics":
                     fig_users = create_professional_bar_chart(user_data, 'Users', 'Count',
                                                              'Number of Users Distribution',
                                                              orientation='v',
-                                                             color_palette=['#8E44AD'] * len(user_data))
+                                                             color_palette='#8E44AD')
                     return fig_users
                 render_in_call_tabs(
                     _builder,
@@ -3278,7 +3450,7 @@ elif selected == "Analytics":
                         affil_data, 'Applications', 'Institution',
                         'Top 10 PI Institutions',
                         orientation='h',
-                        color_palette=[COLORS['warning']] * len(affil_data)
+                        color_palette=COLORS['warning']
                     )
                     return fig_affil
                 render_in_call_tabs(
