@@ -23,12 +23,17 @@
 #     appended later by the user.
 #   * Data tab with a 4-row MultiIndex header that mirrors the first four
 #     rows of the source Excel sheet (group bands, topics, criteria, names).
+#   * Per-Work-Package overview (Implementation status + Research Infrastructure
+#     under one shared year control).
+#   * TRL Maturity Matrix in Analytics (Manual TRL 1-9 per installation, cols
+#     F/Q/V/AC/AT), inspired by the ChEESE TRL chart.
+#   * Source annotations cite the exact spreadsheet column letter + header.
 #
 # License: Internal use — Geo-INQUIRE Project
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
-# Version     : 2.1
-# Last Updated: May 12, 2026
+# Version     : 2.2
+# Last Updated: June 10, 2026
 # Contact     : heriniaina.j.ramanantsoa@uib.no
 #
 # =====================================================================================
@@ -717,7 +722,7 @@ with st.sidebar:
         &bull; <strong>EU contribution:</strong> €13.92 million<br>
         &bull; <strong>Partners:</strong> 51 organisations<br>
         &bull; <strong>Portfolio:</strong> 150+ Virtual &amp; Transnational Access facilities<br>
-        &bull; <strong>Main RIs:</strong> EPOS, EMSO, ChEESE
+        &bull; <strong>Main RIs:</strong> EPOS, EMSO, ChEESE, ARISE, ECCSEL
     </div>
     """, unsafe_allow_html=True)
 
@@ -859,6 +864,8 @@ def load_excel_data():
             '[open; restricted; embargoed]': 'data_policy',
             '[0;1].8': 'converter_plugin',
             '[1-9]': 'trl',
+            '[1-9].1': 'manual_trl',          # item 4: AH (sheet's Manual TRL)
+            'yes/no.1': 'user_tested',         # item 4: AT (User testing performed)
         }
         
         existing_renames = {k: v for k, v in va_col_mapping.items() if k in df_va.columns}
@@ -1027,6 +1034,9 @@ def _apply_va_column_renames(df):
         "[0;1].8" : "converter_plugin",
         "[0, not implemented; 0.2 planned; \n0.5, partly implemented; 1, implemented]": "documentation_status",
         "[1-9]"   : "trl",
+        "[1-9].1" : "manual_trl",       # item 4: AH
+        "percentage": "availability",   # item 4: V
+        "yes/no.1": "user_tested",      # item 4: AT
     }
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
@@ -1297,6 +1307,17 @@ def load_google_sheets_data():
                     df_va.columns.values[zero_one_indices[7]] = 'payloads'
                 if len(zero_one_indices) >= 9:
                     df_va.columns.values[zero_one_indices[8]] = 'converter_plugin'
+
+                # Item 4: 'yes/no' repeats (AM, AT, AU). AT = "User testing
+                # performed" is the SECOND one -> map it to user_tested so the
+                # TRL-9 gate can be evaluated.
+                yesno_indices = [i for i, c in enumerate(cols_list) if c == 'yes/no']
+                if len(yesno_indices) >= 2:
+                    df_va.columns.values[yesno_indices[1]] = 'user_tested'
+                # Item 4: '[1-9]' repeats (AG automatic, AH manual). 2nd = manual.
+                trl_indices = [i for i, c in enumerate(cols_list) if c == '[1-9]']
+                if len(trl_indices) >= 2:
+                    df_va.columns.values[trl_indices[1]] = 'manual_trl'
                 
                 # Also handle the documentation_status column which has newlines
                 doc_status_col = '[0, not implemented; 0.2 planned; \n0.5, partly implemented; 1, implemented]'
@@ -1658,6 +1679,82 @@ def build_four_row_header(header_rows, ncols):
 
 
 # ===============================================================================================
+# ITEM 1 — READABLE SINGLE-ROW HEADER for the Data tab.
+# The raw sheet puts cryptic units in row 4 ("[0;1]", "[%]", "percentage") while the
+# HUMAN-READABLE label lives in row 2 (e.g. "Service is running and reachable publicly").
+# This helper picks the most descriptive text per column and appends the unit in
+# brackets — so a column never shows up as a bare "[0;1]".
+# ===============================================================================================
+import re as _re_hdr                                          # local alias (avoids shadowing)
+
+
+def build_readable_header(header_rows, ncols):
+    """Return a flat list of clean, descriptive column names (one per column)."""
+    rows = []                                                  # normalised rows 1..4
+    for r in header_rows:                                      # iterate the 4 header rows
+        row = [("" if (v is None or (isinstance(v, float) and pd.isna(v)))  # NaN -> ""
+                else str(v).strip()) for v in r]               # stringify + strip
+        row = (row + [""] * ncols)[:ncols]                     # pad/truncate to ncols
+        rows.append(row)                                       # collect
+    r1, r2, r3, r4 = rows[0], rows[1], rows[2], rows[3]        # name the four levels
+
+    def is_unit(s):                                            # True for bare unit codes
+        if not s:                                              # empty is not a unit
+            return False
+        low = s.lower()                                        # case-insensitive test
+        if s.startswith("["):                                  # "[0;1]", "[%]", "[open;...]"
+            return True
+        return low in {"percentage", "metric", "url", "mb", "%", "yes/no"}  # word units
+
+    def is_generic(s):                                         # True for merged band titles
+        low = s.lower()                                        # lower for matching
+        if low == "" or low == "criteria explanation":         # empty / explanation band
+            return True
+        if "implementation level of services" in low:         # the big merged title
+            return True
+        if _re_hdr.fullmatch(r"implementation level \d", low): # "Implementation Level 1/2/3"
+            return True
+        if low.startswith("initial input comes"):              # survey note band
+            return True
+        return False                                           # otherwise keep it
+
+    def is_code(s):                                            # KPI codes like "KPI-VA-1"
+        return bool(_re_hdr.match(r"^KPI[-\s]", s))            # match the KPI prefix
+
+    labels = []                                                # final header strings
+    for i in range(ncols):                                     # one decision per column
+        c2, c3, c4 = r2[i], r3[i], r4[i]                       # this column's row 2/3/4
+        if is_code(c2) and c3:                                 # KPI column -> code + desc
+            base = f"{c2} \u00b7 {c3}"                         # "KPI-VA-1 · Number of ..."
+        elif c2 and not is_generic(c2) and not is_unit(c2):    # 1st choice: descriptive row 2
+            base = c2                                           # e.g. "Average availability..."
+        elif c4 and not is_unit(c4):                           # 2nd: the real row-4 column name
+            base = c4                                           # e.g. "Service/Installation Name"
+        elif c3 and not is_generic(c3) and not is_unit(c3):    # 3rd: row-3 criteria text
+            base = c3                                           # fallback descriptor
+        elif c4:                                               # 4th: whatever row-4 holds
+            base = c4                                           # last resort name
+        else:                                                  # nothing usable
+            base = f"Column {i + 1}"                           # safe placeholder
+        if is_unit(c4) and c4 not in base:                     # attach the unit as a suffix
+            unit = c4 if c4.startswith("[") else f"[{c4}]"     # bracket bare word units
+            base = f"{base} {unit}"                            # "... [0;1]" / "... [percentage]"
+        base = _re_hdr.sub(r"\s+", " ", base).strip()          # collapse newlines/extra spaces
+        labels.append(base)                                    # store the readable label
+
+    seen = {}                                                  # de-duplicate (Streamlit needs it)
+    out = []                                                   # unique output list
+    for lab in labels:                                         # walk all labels
+        if lab in seen:                                        # already used?
+            seen[lab] += 1                                     # bump counter
+            out.append(f"{lab} ({seen[lab]})")                 # disambiguate with (n)
+        else:                                                  # first time seen
+            seen[lab] = 0                                       # init counter
+            out.append(lab)                                     # keep as-is
+    return out                                                 # flat list of clean names
+
+
+# ===============================================================================================
 # HELPER — Render a figure inside four year tabs (2023, 2024, 2025, 2026)
 # ===============================================================================================
 # The user asked that every figure in the VA Dashboard and in the Analytics
@@ -1929,28 +2026,46 @@ def ta_reporting_completeness(df):
 # This mapping allows each figure to display which original column(s) from the ILM table
 # were used, so readers can backtrack to the source data.
 # ===============================================================================================
+# NOTE (item 5): every source annotation now names the EXACT spreadsheet column
+# LETTER plus the real header text from GeoINQUIRE-ImplementationLevelMatrix
+# (Implementation_Level_Matrix_VA sheet), e.g. "Col Q · ... [0;1]".  Format is
+# "Col <letter> · <header> [<unit>]".
 VA_COLUMN_SOURCES = {
-    'compliant_ri': 'Compliant with Research infrastructure (RI)',
-    'implementation_status': 'Implementation status to RI [0; not implemented, 0.2; planned, 0.5; partly implemented, 1; implemented]',
-    'data_repr': 'Data Representations [georeferenced/non-georeferenced/time-series/software]',
-    'license': 'License',
-    'metadata_standard': 'Standard of metadata describing the service at RI integration level (not data)',
-    'service_running': '[0;1] - Service Running',
-    'api_standard': '(OGC, ERDDAP, etc)',
-    'parametrization': '[0;1] - Parametrization',
-    'fully_described': '[0;1] - Fully Described',
-    'documentation_status': '[0, not implemented; 0.2 planned; 0.5, partly implemented; 1, implemented]',
-    'payloads': '[0;1] - Payloads',
-    'auth_method': '[e.g. OAuth, SAML, API access token, none]',
-    'data_policy': '[open; restricted; embargoed]',
-    'converter_plugin': '[0;1] - Converter Plugin',
-    'completeness_pct': '[%] - Completeness',
-    'trl': '[1-9] - TRL',
-    'domain': 'Scientific domain/category',
-    'service_name': 'Service/Installation Name',
-    'installation_id': 'Installation ID',
-    'service_id': 'Service ID',
-    'wp': 'WP',
+    'contact_person':        'Col A · Contact person',
+    'email':                 'Col B · Email',
+    'affiliation':           'Col C · Affiliation',
+    'service_name':          'Col D · Service/Installation Name',
+    'compliant_ri':          'Col E · Compliant with Research infrastructure (RI)',
+    'implementation_status': 'Col F · Implementation status to RI [0; 0.2; 0.5; 1]',
+    'installation_id':       'Col G · Installation ID',
+    'service_id':            'Col H · Service ID',
+    'wp':                    'Col I · WP',
+    'data_repr':             'Col J · Data Representations [georeferenced / time-series / software]',
+    'response_formats':      'Col K · Service Response Formats',
+    'license':               'Col L · License',
+    'metadata_standard':     'Col M · Standard of metadata describing the service at RI integration level',
+    'installation_url':      'Col N · Installation URL',
+    'domain':                'Col O · Scientific domain/category',
+    'completeness_pct':      'Col P · Completeness of installation integration into RI [%]',
+    'service_running':       'Col Q · Service is running and reachable publicly [0;1]',
+    'endpoint_url':          'Col R · Direct URL to service',
+    'api_standard':          'Col S · WebService API based on a standard (OGC, ERDDAP, etc)',
+    'parametrization':       'Col T · Parametrization of the service is possible [0;1]',
+    'provides_data':         'Col U · Service provides data [0;1]',
+    'availability':          'Col V · Average availability of the service [percentage]',
+    'license_exists':        'Col W · License for the data provided exists [0;1]',
+    'fully_described':       'Col X · Service fully described with metadata [0;1]',
+    'documentation_status':  'Col Y · Documentation of the service available [0; 0.2; 0.5; 1]',
+    'documentation_url':     'Col Z · Documentation URL',
+    'qp_documentation':      'Col AA · Quality Provenance (QP) documentation [0;1]',
+    'data_quality':          'Col AB · Data quality indicated at service level [0;1]',
+    'payloads':              'Col AC · All downloadable payloads provide data [0;1]',
+    'auth_method':           'Col AD · Authentication method [OAuth, SAML, API token, none]',
+    'data_policy':           'Col AE · Data policy [open; restricted; embargoed]',
+    'converter_plugin':      'Col AF · WebService response needs a Converter Plugin [0;1]',
+    'trl':                   'Col AG · Technology Readiness Level — Automatic TRL assessment [1-9]',
+    'manual_trl':            'Col AH · Manual TRL [1-9]',
+    'user_tested':           'Col AT · User testing performed [yes/no]',
 }
 
 TA_COLUMN_SOURCES = {
@@ -1990,9 +2105,10 @@ def add_source_annotation(col_keys, access_type="VA"):
             sources.append(source_map[key])
     if sources:
         source_text = " | ".join(sources)
+        # Item 5: values already carry the column letter (e.g. "Col Q · ...").
         st.markdown(
             f'<p style="font-size: 0.7rem; font-style: italic; color: #999; margin: 0.1rem 0 0.5rem 0; line-height: 1.2;">'
-            f'Source column: {source_text}</p>',
+            f'Source: {source_text}</p>',
             unsafe_allow_html=True
         )
 
@@ -2157,6 +2273,138 @@ def create_enhanced_heatmap(df):
     ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.15, 1),
               fontsize=10, frameon=True, fancybox=True)
     plt.tight_layout()
+    return fig
+
+
+# ===============================================================================================
+# ITEM 4 — TRL MATURITY MATRIX  (a "complex" plot, same spirit as the Implementation
+# Matrix Analysis, but summarising the maturity of every installation in ONE figure).
+# Current (live) data only — no historical tabs.
+# ===============================================================================================
+def _coerce_num(val):
+    """Tolerant numeric coercion: handles real numbers AND text like '0.2' / '0,2'
+    (the F and V columns store some decimals as text).  Returns float or None."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        try:
+            return float(val)
+        except Exception:
+            return None
+    s = str(val).strip()
+    if s == "":
+        return None
+    for cand in (s, s.replace(",", ".")):     # accept comma OR dot decimals
+        try:
+            return float(cand)
+        except Exception:
+            pass
+    return None
+
+
+def compute_manual_trl(df):
+    """
+    Compute the Manual TRL (1–9) for every row using the SAME cascading ladder as
+    the spreadsheet formula in column AH.  Each higher rung requires every lower
+    gate (you cannot reach high availability if the service is not running):
+
+        F (implementation_status)  ≠ 0 .................... TRL 1   (planned/partly)
+        F = 1 ............................................. TRL 5   (implemented)
+        + Q (service_running) = 1 ......................... TRL 6   (Level 1)
+        + V (availability) > 50 ........................... TRL 7   (Level 2)
+        + AC (payloads) = 1 ............................... TRL 8   (Level 3)
+        + AT (user_tested) = yes .......................... TRL 9   (tested)
+        F = 0 ............................................. 0       (not implemented)
+
+    Returns a pandas Series of ints aligned to df.index.
+    """
+    if df is None or df.empty or 'implementation_status' not in df.columns:
+        return pd.Series(dtype=int)
+
+    def row_trl(r):
+        F = _coerce_num(r.get('implementation_status'))
+        Q = _coerce_num(r.get('service_running')) if 'service_running' in r else None
+        V = _coerce_num(r.get('availability')) if 'availability' in r else None
+        AC = _coerce_num(r.get('payloads')) if 'payloads' in r else None
+        AT = str(r.get('user_tested', '')).strip().lower() == 'yes'
+        q = (Q == 1)
+        v = (V is not None and V > 50)
+        ac = (AC == 1)
+        if F == 1 and q and v and ac and AT:
+            return 9
+        if F == 1 and q and v and ac:
+            return 8
+        if F == 1 and q and v:
+            return 7
+        if F == 1 and q:
+            return 6
+        if F == 1:
+            return 5
+        if F == 0:
+            return 0
+        if F is not None and F > 0:
+            return 1
+        return 0
+
+    return df.apply(row_trl, axis=1)
+
+
+def create_trl_matrix_figure(df):
+    """
+    TRL maturity matrix: rows = Research Infrastructure, columns = TRL 1–9.
+    Each cell = number of installations of that RI at that TRL; the shade encodes
+    that count on a calm light-blue → navy ramp (NO red).  A right-hand strip
+    shows the mean TRL per RI, and the bottom strip the overall TRL distribution —
+    so the whole project's maturity is readable in a single figure.
+    """
+    if df is None or df.empty or 'compliant_ri' not in df.columns:
+        return None
+    trl = compute_manual_trl(df)
+    if trl.empty:
+        return None
+    work = pd.DataFrame({'ri': df['compliant_ri'], 'trl': trl})
+    work = work[(work['trl'] >= 1) & work['ri'].notna()]   # drop TRL 0 / blank RI
+    if work.empty:
+        return None
+
+    ris = sorted(work['ri'].unique())
+    levels = list(range(1, 10))
+    mat = np.zeros((len(ris), len(levels)))
+    for i, ri in enumerate(ris):
+        sub = work[work['ri'] == ri]
+        for j, lv in enumerate(levels):
+            mat[i, j] = int((sub['trl'] == lv).sum())
+
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list(
+        "trl_blue", ["#eef4fb", "#cfe0f4", "#9cc0e6", "#5b9bd5", "#2563eb", "#1f3a5f"])
+
+    fig_h = max(5.5, 0.5 * len(ris) + 3.0)
+    fig, ax = plt.subplots(figsize=(15, fig_h), dpi=100)
+    # mean TRL per RI folded into the row label (avoids colliding with the colorbar)
+    row_labels = [f"{ri}  (mean {work[work['ri'] == ri]['trl'].mean():.1f})" for ri in ris]
+    sns.heatmap(mat, cmap=cmap, cbar=True, linewidths=1.4, linecolor="white",
+                xticklabels=[f"TRL {l}" for l in levels], yticklabels=row_labels, ax=ax,
+                cbar_kws={'label': 'Number of installations', 'shrink': 0.7})
+
+    # annotate non-zero counts
+    for i, ri in enumerate(ris):
+        for j in range(len(levels)):
+            if mat[i, j] > 0:
+                shade = mat[i, j] / (mat.max() if mat.max() else 1)
+                ax.text(j + 0.5, i + 0.5, f'{int(mat[i, j])}', ha='center', va='center',
+                        color='white' if shade >= 0.55 else '#0f172a',
+                        fontsize=12, fontweight='bold')
+
+    ax.set_title('TRL Maturity Matrix  —  Research Infrastructure × Technology Readiness Level\n'
+                 'Cell = number of installations at each TRL (current data)',
+                 pad=18, fontsize=16, fontweight='bold', loc='left')
+    ax.set_xlabel('Technology Readiness Level (1 = basic principles → 9 = operation-ready)',
+                  fontsize=12, fontweight='bold')
+    ax.set_ylabel('Research Infrastructure', fontsize=12, fontweight='bold')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=10)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=10)
+    fig.tight_layout()
     return fig
 
 
@@ -2464,25 +2712,49 @@ def build_license_figure(_df, _yr):
 
 def render_va_overview_figures(scope_tag, row_filter=None):
     """
-    Render the five key VA overview figures (each across the four year tabs),
-    optionally scoped by `row_filter`.  `scope_tag` namespaces the Plotly chart
-    keys so the same figure can appear for the whole project and for each WP.
+    Item 3: per-Work-Package overview now keeps ONLY two figures —
+    "Implementation Status" and "Research Infrastructure" — and puts them under a
+    SINGLE shared set of year tabs.  Clicking e.g. "2025" switches BOTH figures to
+    2025 at once (previously each figure had its own independent year tabs).
+
+    `scope_tag` namespaces the Plotly chart keys; `row_filter` scopes to one WP.
     """
-    specs = [
-        (build_impl_figure,     "impl",     ["implementation_status"],          "Implementation Status"),
-        (build_ri_figure,       "ri",       ["compliant_ri"],                   "Research Infrastructures"),
-        (build_datarepr_figure, "datarepr", ["data_repr"],                      "Data Representations"),
-        (build_metadata_figure, "metadata", ["metadata_standard"],              "Metadata Standards"),
-        (build_license_figure,  "license",  ["license"],                        "License Distribution"),
-    ]
-    cols = st.columns(2)
-    for idx, (builder, key, src, title) in enumerate(specs):
-        with cols[idx % 2]:
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            render_in_year_tabs(builder, figure_key=f"{key}_{scope_tag}",
-                                source_cols=src, access_type="VA",
-                                figure_title=title, row_filter=row_filter)
-            st.markdown("</div>", unsafe_allow_html=True)
+    # ONE row of year tabs shared by both figures (the shared period control).
+    tabs = st.tabs(list(YEAR_TAB_LABELS))
+    for tab, year_label in zip(tabs, YEAR_TAB_KEYS):
+        with tab:
+            # fetch this year's frame, then apply the WP filter (if any)
+            year_df = VA_DATA_BY_YEAR.get(year_label)
+            if year_df is None or (hasattr(year_df, "empty") and year_df.empty):
+                st.info(f"No data available for **{year_label}**.")
+                continue
+            if row_filter is not None:
+                year_df = row_filter(year_df)
+            if year_df is None or year_df.empty:
+                st.info(f"No rows for this scope in **{year_label}**.")
+                continue
+            # the two figures sit side by side, both showing the selected year
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                fig_impl = build_impl_figure(year_df, year_label)   # Implementation status
+                if fig_impl is not None:
+                    st.plotly_chart(fig_impl, use_container_width=False,
+                                    key=f"impl_{scope_tag}_{year_label}")
+                    add_source_annotation(["implementation_status"], access_type="VA")
+                else:
+                    st.info(f"No Implementation Status data in {year_label}.")
+                st.markdown("</div>", unsafe_allow_html=True)
+            with c2:
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                fig_ri = build_ri_figure(year_df, year_label)       # Research Infrastructure
+                if fig_ri is not None:
+                    st.plotly_chart(fig_ri, use_container_width=False,
+                                    key=f"ri_{scope_tag}_{year_label}")
+                    add_source_annotation(["compliant_ri"], access_type="VA")
+                else:
+                    st.info(f"No Research Infrastructure data in {year_label}.")
+                st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ------------------------------- MAIN CONTENT -------------------------------
@@ -3327,9 +3599,81 @@ elif selected == "Analytics":
                     figure_title="Converter",
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
+
+            # =================================================================
+            # ITEM 4 — TRL MATURITY MATRIX (bottom of Analytics, current data)
+            # =================================================================
+            st.markdown("---")
+            st.markdown("## TRL Maturity Matrix")
+            # ITEM 2 — concise method + interpretation (collapsible).
+            with st.expander("How the TRL is computed and how to read it", expanded=False):
+                st.markdown(
+                    "**What the TRL value means.** Each installation is given a single "
+                    "number from **1 to 9** that summarises *how mature it is* — i.e. how "
+                    "far it has progressed from an early idea toward a fully operational, "
+                    "user-ready service integrated into its Research Infrastructure. The "
+                    "scale follows the European Commission definition adapted by ChEESE "
+                    "(cheese-coe.eu/cheese-trl-chart):\n"
+                    "- **1–4 (concept → lab):** defined and validated in a development "
+                    "setting, not yet a live service.\n"
+                    "- **5–6 (relevant environment):** implemented and running, reachable "
+                    "by users.\n"
+                    "- **7–8 (operational environment):** available and serving real data "
+                    "payloads reliably.\n"
+                    "- **9 (operation-ready):** tested with users and deployed for routine "
+                    "use.\n\n"
+                    "**Why it matters (the real need).** The TRL turns dozens of yes/no "
+                    "integration criteria into one comparable readiness score per "
+                    "installation. That lets the project **monitor maturity over time, "
+                    "compare Research Infrastructures, spot where installations are stuck, "
+                    "and report progress** to the EC against the Geo-INQUIRE objectives.\n\n"
+                    "**Method (cumulative ladder).** An installation climbs one rung at a "
+                    "time; each higher rung requires every lower gate, so the score stops at "
+                    "the last gate that still holds:\n"
+                    "- **1** — implementation started (col F \u2260 0: planned/partly)\n"
+                    "- **5** — implemented to the RI (col F = 1)\n"
+                    "- **6** — service running & publicly reachable (col Q = 1, Level 1)\n"
+                    "- **7** — average availability > 50% (col V, Level 2)\n"
+                    "- **8** — all downloadable payloads provide data (col AC = 1, Level 3)\n"
+                    "- **9** — user testing performed / deployed & ready (col AT = yes)\n"
+                    "- **0** — not implemented (col F = 0)\n\n"
+                    "**How to read the matrix.** Rows are Research Infrastructures, columns "
+                    "are TRL 1\u21929. Each cell shows how many installations sit at that TRL; "
+                    "darker blue = more installations. The *mean TRL* per RI is shown in the "
+                    "row label. A maturing project shifts mass toward the right (TRL 7\u20139)."
+                )
+            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+            try:
+                fig_trl = create_trl_matrix_figure(va_df)        # current/live data only
+                if fig_trl is not None:
+                    st.pyplot(fig_trl, clear_figure=False, use_container_width=False)
+                    add_source_annotation(
+                        ["implementation_status", "service_running", "availability",
+                         "payloads", "user_tested"], access_type="VA")
+                    st.caption(
+                        "**TRL maturity of every current installation, by Research "
+                        "Infrastructure.** Each installation carries one readiness score "
+                        "(1 = basic concept \u2192 9 = tested & operation-ready), computed with "
+                        "the cumulative ladder above from columns F, Q, V, AC and AT. Read "
+                        "the spread per row to see how mature each RI is, and the column "
+                        "totals to see where the whole project sits. TRL 9 requires the "
+                        "'User testing performed' field (col AT) to be filled."
+                    )
+                    buf = io.BytesIO()
+                    fig_trl.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                    buf.seek(0)
+                    st.download_button(
+                        label="Download TRL Maturity Matrix (High-Res PNG)",
+                        data=buf, file_name="trl_maturity_matrix.png",
+                        mime="image/png", key="trl_matrix_download")
+                else:
+                    st.info("TRL matrix needs implementation_status and compliant_ri columns.")
+            except Exception as e:
+                st.warning(f"Could not build TRL matrix: {e}")
+            st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No Virtual Access data available")
-    
+
     else:
         # ENHANCED TA ANALYTICS with 10+ charts
         if ta_df is not None and not ta_df.empty:
@@ -3739,11 +4083,11 @@ elif selected == "Data":
     with data_tab_table:
         # A short note explaining the 4-row header to anyone unfamiliar with the
         # Excel layout — keeps the table self-documenting.
-        st.caption(
-            "The header below mirrors the first four rows of the source spreadsheet: "
-            "**Group band → Topic → Criteria → Column name**, exactly as in the "
-            "Excel file `GeoINQUIRE-ImplementationLevelMatrix.xlsx`."
-        )
+        # st.caption(
+        #     "Each column header below is the descriptive label from the source "
+        #     "spreadsheet (row 2), with its unit shown in brackets where relevant — "
+        #     "so no column appears as a bare code like `[0;1]` or `[%]`."
+        # )
 
         # ---------------------------------------------------------------------------
         # VIRTUAL ACCESS BRANCH
@@ -3753,32 +4097,25 @@ elif selected == "Data":
                 # 1) Work on a copy so the source frame stays untouched between reruns.
                 va_display = va_raw.copy()
 
-                # 2) De-duplicate column names that may repeat in row 4 of the sheet
-                #    (e.g. several "[0;1]" cells). Streamlit's dataframe rendering
-                #    rejects an Index with duplicates, so we suffix the duplicates
-                #    with _1, _2, ... while leaving the first occurrence intact.
-                cols = pd.Series(va_display.columns.astype(str))
-                for dup in cols[cols.duplicated()].unique():
-                    dup_indices = [i for i, x in enumerate(cols) if x == dup]
-                    for i, idx in enumerate(dup_indices[1:], start=1):
-                        cols[idx] = f"{dup}_{i}"
-                va_display.columns = cols
-
-                # 3) Build the 4-row MultiIndex from rows 1–4 (`va_header4` was set
-                #    inside `load_google_sheets_data` / `load_excel_data`).  The
-                #    helper forward-fills the merged group bands so they span the
-                #    correct columns, and it gracefully handles the case where
-                #    the header rows are shorter than the data.
+                # 2) ITEM 1: replace cryptic row-4 names with readable headers built
+                #    from row 2 (descriptive) + unit suffix. Falls back to the flat
+                #    de-duplicated names if the 4 header rows aren't available.
                 if va_header4 is not None and len(va_header4) == 4:
                     try:
-                        multi_idx = build_four_row_header(va_header4, len(va_display.columns))
-                        va_display.columns = multi_idx
+                        va_display.columns = build_readable_header(
+                            va_header4, len(va_display.columns))
                     except Exception as exc:
-                        # Fall back silently to the flat header if anything goes
-                        # wrong — the user still sees the data with single names.
-                        st.caption(f"(Could not build multi-row header: {exc})")
+                        st.caption(f"(Could not build readable header: {exc})")
+                else:
+                    # No 4-row header on hand -> just de-duplicate the existing names.
+                    cols = pd.Series(va_display.columns.astype(str))
+                    for dup in cols[cols.duplicated()].unique():
+                        for i, idx in enumerate(
+                                [k for k, x in enumerate(cols) if x == dup][1:], start=1):
+                            cols[idx] = f"{dup}_{i}"
+                    va_display.columns = cols
 
-                # 4) Render the dataframe and offer a CSV download.
+                # 3) Render the dataframe and offer a CSV download.
                 st.caption(f"**Virtual Access Data** — {len(va_display):,} records")
                 st.dataframe(va_display, use_container_width=True)
 
@@ -3802,21 +4139,20 @@ elif selected == "Data":
                 # Same pattern as the VA branch but on the TA sheet.
                 ta_display = ta_raw.copy()
 
-                # De-duplicate columns
-                cols = pd.Series(ta_display.columns.astype(str))
-                for dup in cols[cols.duplicated()].unique():
-                    dup_indices = [i for i, x in enumerate(cols) if x == dup]
-                    for i, idx in enumerate(dup_indices[1:], start=1):
-                        cols[idx] = f"{dup}_{i}"
-                ta_display.columns = cols
-
-                # Build the multi-row header for TA
+                # ITEM 1: readable descriptive headers (row 2 + unit) for TA as well.
                 if ta_header4 is not None and len(ta_header4) == 4:
                     try:
-                        multi_idx = build_four_row_header(ta_header4, len(ta_display.columns))
-                        ta_display.columns = multi_idx
+                        ta_display.columns = build_readable_header(
+                            ta_header4, len(ta_display.columns))
                     except Exception as exc:
-                        st.caption(f"(Could not build multi-row header: {exc})")
+                        st.caption(f"(Could not build readable header: {exc})")
+                else:
+                    cols = pd.Series(ta_display.columns.astype(str))
+                    for dup in cols[cols.duplicated()].unique():
+                        for i, idx in enumerate(
+                                [k for k, x in enumerate(cols) if x == dup][1:], start=1):
+                            cols[idx] = f"{dup}_{i}"
+                    ta_display.columns = cols
 
                 st.caption(f"**Transnational Access Data** — {len(ta_display):,} records")
                 st.dataframe(ta_display, use_container_width=True)
@@ -3894,7 +4230,7 @@ elif selected == "Contact":
                 Dashboard team
             </div>
             <div style="color:#334155; font-size:0.95rem;">
-                <strong>Conceived by:</strong> Jan Michalek &amp; Juliano Ramanantsoa<br>
+                <strong>Conceived by:</strong> Juliano Ramanantsoa &amp; Jan Michalek<br>
                 <strong>Affiliation:</strong> University of Bergen, Norway<br>
                 <strong>Contact:</strong>
                 <a href="mailto:heriniaina.j.ramanantsoa@uib.no"
@@ -3919,7 +4255,6 @@ elif selected == "Contact":
                 <strong>Grant agreement:</strong> 101058518<br>
                 <strong>Call:</strong> HORIZON-INFRA-2021-SERV-01<br>
                 <strong>Duration:</strong> 1 Oct 2022 – 30 Sep 2026<br>
-                <strong>EU contribution:</strong> €13,923,475.77<br>
                 <strong>Coordinator:</strong> GFZ Helmholtz Centre for Geosciences
             </div>
         </div>
