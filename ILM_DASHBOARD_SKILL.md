@@ -102,8 +102,29 @@ All VA workbooks read with `header=3` (the 4-row hierarchical header). Column na
 are normalised by `_apply_va_column_renames()` — it maps both the 2023 vintage
 (`TCS Name`, `Research infrastructure (RI)`) and the 2024/2025 vintage
 (`Contact person`, `Compliant with Research infrastructure (RI)`) onto the same
-internal names: `contact_person, email, affiliation, service_name, compliant_ri,
-implementation_status, data_repr, license, metadata_standard, gender`.
+internal names. **As of the colour-consistency rework it also maps the analytics
+columns that the Analytics page needs** — without these the old-year tabs showed
+"No data for Service Running / Api Standards":
+
+- the nine de-duplicated `[0;1]` binary columns →
+  `service_running, parametrization, provides_data, license_exists,
+  fully_described, qp_documentation, data_quality, payloads, converter_plugin`
+  (exact-name map for `[0;1]`, `[0;1].1` … `[0;1].8`, **plus** a positional
+  fallback as insurance);
+- `(OGC, ERDDAP, etc)` → `api_standard`, `Service Response Formats` → `response_formats`;
+- `implementation_status, documentation_status` and the nine binary columns are
+  coerced to numeric by the nested `_clean_numeric` helper, which treats
+  `[request]` / `TBD` / blank as `NaN` (so counts don't get polluted).
+
+Full internal schema: `contact_person, email, affiliation, service_name,
+compliant_ri, implementation_status, data_repr, response_formats, license,
+metadata_standard, api_standard, service_running, parametrization, provides_data,
+license_exists, fully_described, qp_documentation, data_quality, payloads,
+converter_plugin, documentation_status, gender`.
+
+> **If a chart is empty only on the old-year tabs**, the column it reads probably
+> isn't being produced by `_apply_va_column_renames` for that vintage — add the
+> mapping there, not in the chart.
 
 ---
 
@@ -131,8 +152,34 @@ implementation_status, data_repr, license, metadata_standard, gender`.
    stat dicts go through the cleaner in `compute_va_statistics()`. When you add a new
    categorical chart, filter `{"", "0", "0.0", "nan", "None", "-"}` out first (use the
    `value_counts_clean()` helper).
-6. **Palette & type.** Use the `COLORS` dict (navy `#1f3a5f`, blue `#2563eb`,
-   emerald `#0e9f6e`, …) and `FONT_FAMILY` (Inter stack). Don't hard-code hex.
+6. **Colour is by *label*, never by position.** Every chart routes its colours
+   through `resolve_colors(labels, color_map=None, palette=None)` so the *same
+   category gets the same colour on every year/Call tab* (the thing that was
+   broken: "Not implemented" was red in 2026 but blue in 2025 because colours were
+   sliced from a palette by row order). The rule inside `resolve_colors`:
+   1. a caller `color_map` (case-insensitive) wins;
+   2. else, if **no** `palette` was passed, `CANONICAL_COLORS` is consulted
+      (fixed status / yes-no / access colours — e.g. `not implemented → #dc2626`
+      red, `implemented → #0e9f6e` green, `yes → green`, `no → red`);
+   3. else a colour from a **persistent registry** keyed on the label (namespaced
+      per palette): the first time a label is seen it's given the next free slot in
+      `STABLE_PALETTE` (or the palette you passed) and that pairing never changes —
+      so the same category keeps its colour across every year tab even when the set
+      of categories present differs from one year to the next. (An earlier version
+      ranked labels *within each call*, which reshuffled colours whenever a category
+      appeared/disappeared between years — that was the consistency bug.)
+   How to call it:
+   - status / yes-no charts → pass the status dict as `color_map` (donut/pie) or
+     as `color_palette` (the bar factory accepts a **dict**); canonical colours apply.
+   - "keep it all blues/greens" charts (RI, metadata, data-representation) → pass
+     the palette: `resolve_colors(cats, palette=COLORS['blue_palette'])`, or call the
+     bar factory with `color_palette=COLORS['blue_palette']`.
+   - one solid colour → pass a **string** (`color_palette='#8E44AD'`), *not*
+     `['#8E44AD']*n`.
+   **Never pre-build a per-row colour list and pass it as `color_palette`** — the bar
+   factory now treats a *list* as a palette to rank against, so a pre-aligned list
+   gets scrambled. Pass the `color_map` dict and let the factory resolve it.
+   Add any new fixed colour to `CANONICAL_COLORS`; never hard-code hex at a chart.
 7. **Legends** sit horizontally under the chart (`orientation="h"`, `y≈-0.22`,
    generous bottom margin ≈110–120) — the "License Distribution" chart is the
    reference look.
@@ -148,7 +195,24 @@ implementation_status, data_repr, license, metadata_standard, gender`.
 12. **EU funding acknowledgement is mandatory and visible.** `render_eu_acknowledgement()`
     draws the inline 12-star EU flag (`EU_FLAG_SVG`) plus the exact sentence in
     `GEOINQUIRE_ACK_SENTENCE`. It runs as a page footer (module level, end of file,
-    `variant="footer"`) and on the login page (`variant="login"`). Never remove it.
+    `variant="footer"`) **and on the login/password page** (`variant="login"`, a light
+    card headed "How to acknowledge Geo-INQUIRE"). Never remove it.
+    **Definition order matters:** `EU_FLAG_SVG`, `GEOINQUIRE_ACK_SENTENCE` and
+    `render_eu_acknowledgement()` must be defined *immediately after
+    `st.set_page_config(...)` and BEFORE `def check_password()`* — `check_password`
+    calls it on the login page and the module-level gate `if not check_password():`
+    runs at import, so a later definition raises
+    `NameError: name 'render_eu_acknowledgement' is not defined`.
+
+13. **The Implementation-Matrix heatmap uses the project's preferred layout, red-free.**
+    `create_enhanced_heatmap()` is the RI×Data-Representation matrix where each cell
+    shows the **total** services in a white rounded box (centre) and the
+    **implemented** count with a `✓` in a green box (lower-left), plus a legend. The
+    cell shade encodes the implemented count. The **only** colour rule: never use
+    `RdYlGn` or any red ramp (red read as a warning) — it uses a light-blue → navy
+    sequential `LinearSegmentedColormap` so the green `✓` corner stands out. Keep the
+    "Implementation Matrix Analysis" title and the two-box annotation style; don't
+    replace it with a single share-percentage cell (that version was rejected).
 
 ## 5a. Transnational Access statistics (expert framing)
 
@@ -184,6 +248,8 @@ installation-definition padding rows.
 - **Stats** — `compute_va_statistics` (with the zero-cleaner).
 - **Helpers** — `render_in_year_tabs`, `render_in_call_tabs`, `value_counts_clean`,
   `build_four_row_header`, `add_source_annotation`, `create_download_button`.
+- **Colour resolver** — `CANONICAL_COLORS`, `STABLE_PALETTE`, `resolve_colors()`
+  (see convention 6); every factory and inline figure calls it.
 - **Chart factories** — `create_professional_bar_chart`, `_filter_zero_slices`,
   `create_professional_donut_chart`, `create_professional_pie_chart`,
   `create_enhanced_heatmap`.
@@ -204,6 +270,8 @@ installation-definition padding rows.
 - **Add machine-readable data:** the `Data → Machine-readable` tab is the reserved
   home for the tidy/long-format or JSON-LD export.
 - **Change colours/fonts:** edit `COLORS` / `FONT_FAMILY` once; everything inherits.
+  To pin a *category* colour everywhere (e.g. a new status value), add it to
+  `CANONICAL_COLORS` — don't touch individual charts.
 
 ---
 
@@ -256,6 +324,39 @@ TA shows Call 1–4, no "0" pie slices, light theme, no red errors, PNG download
 - Sheet names drift between exports (`ILM_VA` vs `ILM-VA` vs `Implementation_Level_Matrix_VA`).
   Keep `HISTORICAL_VA_SHEET_CANDIDATES` in sync.
 - The 2023 export uses older column names; rely on `_apply_va_column_renames`.
+- **A chart is empty only on 2023/2024/2025 tabs** (works on 2026·Live): the column
+  it reads isn't being produced by `_apply_va_column_renames` for that older vintage.
+  Add the mapping there. This is what caused the empty "Service Running / Api
+  Standards" charts.
+- **A category's colour differs between year/Call tabs**: something is colouring by
+  row position instead of going through `resolve_colors` (convention 6). Most often a
+  caller pre-built a per-row colour list and passed it as `color_palette` — pass the
+  `color_map` dict instead.
+- **`NameError: render_eu_acknowledgement` on the login page**: the EU block was moved
+  below `check_password`. It must sit right after `st.set_page_config` and before
+  `def check_password` (convention 12).
+- **"No secrets found … secrets.toml"** red box: this is the *expected* message only
+  when the deployed build pre-dates the `try/except` guard around `st.secrets` in
+  `load_google_sheets_data`. The current code swallows it and falls back to the Excel
+  loader on a laptop; just redeploy + reboot to clear a stale build.
+- **Year tabs stay empty online even after `git add ILM_Old/`**: the `.xlsx` are being
+  ignored by `.gitignore` (e.g. a `*.xlsx` rule), so `git add` silently skips them and
+  `git ls-files ILM_Old/` returns nothing. Force them in:
+  `git add -f "ILM_Old/"*.xlsx`, confirm with `git ls-files ILM_Old/` (must list 3),
+  commit, push, reboot. Never force-add the `*.json` credentials.
+
+## 11. Per-Work-Package breakdown
+
+The VA Dashboard shows the whole-project **Overview** first, then **"Overview by
+Work Package"** below it: `st.tabs` of `WPn` tokens, each repeating the key figures
+filtered to that WP. WP cells look like `WP3 - VA2` / `WP5 - TA2 / VA4`; group by the
+leading token via `wp_token()` (normalises `WP03`→`WP3`). `make_wp_filter(token)`
+returns a `df→df` filter; `render_in_year_tabs(..., row_filter=...)` applies it per
+year. The reusable builders (`build_impl_figure`, `build_ri_figure`,
+`build_datarepr_figure`, `build_metadata_figure`, `build_license_figure`) go through
+the factories, so per-WP colours match the global view. Plotly chart keys are
+namespaced `f"{key}_{scope_tag}"` (e.g. `impl_wp_WP3`) — keep them unique when adding
+new scoped figures.
 
 ---
 
@@ -269,3 +370,69 @@ TA shows Call 1–4, no "0" pie slices, light theme, no red errors, PNG download
 3. Claude will read this skill via project search, follow the conventions in §5, make
    the change, run a syntax check, and hand you the deploy steps from §8.
 4. Keep this file updated when conventions change — it is the project's memory.
+
+---
+
+## 12. v2.3 update — new data + TA Descriptive Overview (June 2026)
+
+### Data source / files
+- The app reads **`ILM_Python_2.xlsx`** (EXCEL_PATH). Its tabs are **`ILM_Connector_VA`**
+  (182×47) and **`ILM_Connector_TA`** (229×27). `VA_SHEET_LEGACY="ILM_Connector_VA"`,
+  `TA_SHEET_LEGACY="ILM_Connector_TA"`. The new master data ships as `ILM_Python_22.xlsx`;
+  to refresh, copy its two sheets into `ILM_Python_2.xlsx` (a plain file copy works).
+- Live Google Sheet (one doc, two tabs): VA tab `ILM_Connector` **gid=2069740867**,
+  TA tab `ILM_Connector_TA` **gid=636297091**. The Sheets loader opens both by NAME.
+  Config constants: `GOOGLE_SHEET_URL_VA`, `GOOGLE_SHEET_URL_TA`.
+
+### TA sheet layout (ILM_Connector_TA)
+- Headers are on **row 4**; **row 5** is sub-notes; **row 6** is an INSTRUCTION/example row
+  ("Provide the given proposal ID…", project_id "New ID attribution…"). Loader reads
+  `header=3, skiprows=[4]` then drops the instruction row by detecting
+  `installation_id.startswith("Provide the given")` / `project_id contains "New ID attribution"`.
+- Column letters → internal names: A installation_id, B project_id, C pi_gender, D project_title,
+  E project_acronym, F ta_host, G pi_affiliation, H project_stage, I stage_updated,
+  J stage_comments, K visit_start, L visit_end, M unit_of_access, N units_requested,
+  O number_of_users, P units_used, Q activity_description, R expected_outcomes,
+  S delivered_outcomes, T outcome_metadata, U access_level, V associated_wp, W associated_va,
+  X associated_ri, Y integration_strategy, Z asset_link, AA provider_contact.
+
+### Call extraction (IMPORTANT)
+- Project IDs are `C1_TA1-44-1_1` → the **Call is the leading `C<n>_`** token. `extract_call`
+  uses `re.search(r'(?:^|[-_\s])C(\d+)[-_]', pid)`. (The old `-C\d-` regex returned "Unknown"
+  for every real row.) Real TA rows = those with a valid Call → `ta_real_projects(df)`.
+
+### TA Descriptive Overview (Section II, top of the TA Dashboard page)
+- **Figure 1** `fig_ta_calls_per_installation` — horizontal stacked bar, installations × Call.
+- **Figure 2** `fig_ta_stage_by_call` (100% stacked, per Call) + `fig_ta_stage_by_installation`
+  (counts, per installation). Stage (Col H) is bucketed into an ordered lifecycle via
+  `TA_STAGE_BUCKETS` / `ta_stage_bucket`.
+- **Figure 3** `fig_ta_completion_funnel` — cumulative gates: All → Completed (H) → +Metadata (T)
+  → +Integration (Y, not "Not accessible") → +Data (S) → +Open access (U). Important = first
+  three; `goal_reached = completed & metadata & integrated` (`ta_completion_flags`).
+- **Figure 4** `fig_ta_world_map` (Plotly choropleth, `locationmode="country names"`) +
+  `fig_ta_goal_by_call` (per-Call goal vs not-yet). Country comes from PI affiliation (Col G)
+  via the dependency-free `resolve_ta_country` (`_TA_COUNTRY_TERMS` explicit names/codes first,
+  then `_TA_INSTITUTION_TERMS` keywords). 71/71 affiliations resolve on current data.
+- Completion classifiers: `ta_is_completed` (late stages set), `ta_meaningful`
+  (drops blank/tbd/"not yet available"), `ta_is_integrated`, `ta_is_open_access` (handles
+  "OpenAcces"/"Open-access" typos).
+
+### Notes
+- Plotly figures display in-browser without kaleido; PNG export keeps the existing HTML fallback.
+- TA_COLUMN_SOURCES now uses the `Col <letter> · <header>` format for the ILM_Connector_TA sheet.
+- Header docstring is **Version 2.3 / June 11 2026**; copyright + authors preserved.
+
+### v2.3.1 — TA Overview polish (June 2026)
+- TA figures are **title-less** (no "Figure N" inside the plot); the descriptive name is a
+  Streamlit `#### header` above each chart, and the legend sits at the top — this removed the
+  legend/title overlap. `_ta_layout(fig, height=...)` no longer takes a title.
+- Each TA overview figure now has a **300-DPI PNG download** (`create_download_button`) and a
+  **source-column caption** (`add_source_annotation(..., access_type="TA")`), exactly like VA.
+- **Removed** the empty "Outcomes & Access" and "Reporting & Metadata Completeness" sections and
+  the per-Call monitoring bar (old Figure 4b `fig_ta_goal_by_call`). The world map is now full width.
+- Installation IDs are normalised by stripping a stray leading `C\d+_` (some Call-4 rows stored
+  the project-style ID in Col A) so installations group consistently.
+- `requirements.txt` pins **`kaleido==0.2.1`** so PNG export works on Streamlit Cloud without a
+  separate Chrome install (kaleido v1 requires Chrome).
+- Sidebar "SELECT PROJECT" radio restyled with robust `div[role="radiogroup"]` selectors → bold
+  pills, selected option in a navy→blue gradient with white text.

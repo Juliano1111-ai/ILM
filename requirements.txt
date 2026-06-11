@@ -1,16 +1,4 @@
-# =====================================================================================
-# ILM Geo-INQUIRE Dashboard — Python dependencies
-# =====================================================================================
-# Pinning notes:
-#   * kaleido is pinned to 0.2.1 because it is the last release in the 0.x series
-#     and is the most-tested combination with Plotly 5.x / 6.x. The 1.x series
-#     requires Plotly >= 6.1.1; without that exact pairing, PNG export silently
-#     breaks and Streamlit prints a confusing UserWarning at every startup.
-#   * Everything else uses lower bounds only — Streamlit Cloud will resolve to
-#     the latest compatible release at build time.
-# =====================================================================================
-
-streamlit>=1.28,<2
+streamlit>=1.28.0
 plotly>=5.0.0
 pandas>=2.0.0
 numpy>=1.24.0

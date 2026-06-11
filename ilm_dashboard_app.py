@@ -28,12 +28,19 @@
 #   * TRL Maturity Matrix in Analytics (Manual TRL 1-9 per installation, cols
 #     F/Q/V/AC/AT), inspired by the ChEESE TRL chart.
 #   * Source annotations cite the exact spreadsheet column letter + header.
+#   * TA Descriptive Overview (Section II): Figure 1 applications per
+#     installation by Call; Figure 2 project stage per Call & per installation;
+#     Figure 3 completion pipeline (Completed · Metadata · Integration, +Data,
+#     +Open access); Figure 4 world map of TA per PI country + per-Call goals.
+#   * Readable Data-tab headers (descriptive row-2 label + unit, never bare codes).
+#   * Reads ILM_Python_2.xlsx (tabs ILM_Connector_VA / ILM_Connector_TA) or the
+#     live Google Sheet (VA gid 2069740867, TA gid 636297091).
 #
 # License: Internal use — Geo-INQUIRE Project
 # Contact: Geo-INQUIRE Project Administration, University of Bergen
 #
-# Version     : 2.2
-# Last Updated: June 10, 2026
+# Version     : 2.3
+# Last Updated: June 11, 2026
 # Contact     : heriniaina.j.ramanantsoa@uib.no
 #
 # =====================================================================================
@@ -110,6 +117,16 @@ EXCEL_PATH_LEGACY   = "ILM_Python_2.xlsx"
 GOOGLE_SHEET_URL    = ("https://docs.google.com/spreadsheets/d/"
                       "1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/"
                       "edit?gid=2069740867#gid=2069740867")
+
+# Live worksheet URLs/gids for the two tabs of the same spreadsheet:
+#   * VA tab ("ILM_Connector")    -> gid=2069740867  (used as the default above)
+#   * TA tab ("ILM_Connector_TA") -> gid=636297091
+# The Google Sheets loader opens both tabs by NAME, so these are kept for
+# reference/documentation; update them if the spreadsheet is ever migrated.
+GOOGLE_SHEET_URL_VA = GOOGLE_SHEET_URL
+GOOGLE_SHEET_URL_TA = ("https://docs.google.com/spreadsheets/d/"
+                      "1noNhzwKOp1_t9RfgJc__zvXs-23t_BofigcZBjTnADM/"
+                      "edit?gid=636297091#gid=636297091")
 
 # Filename of the Google service-account JSON used for authentication.
 # Must sit in the same folder as this script for local runs. On Streamlit
@@ -643,45 +660,45 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    # Inject custom CSS to make the radio buttons large, bold & highly visible
+    # Inject custom CSS to make the radio buttons large, bold & highly visible.
+    # Uses role="radiogroup" selectors (robust across Streamlit versions) and keeps
+    # the radio dot visible so the control is unmistakable even if a rule is missed.
     st.markdown("""
     <style>
     /* ===== PROMINENT PROJECT TOGGLE BUTTONS ===== */
-    div[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.65rem !important;
+    section[data-testid="stSidebar"] div[role="radiogroup"]{
+        gap:0.6rem !important; display:flex !important; flex-direction:column !important;
     }
-    div[data-testid="stSidebar"] .stRadio > div > label {
-        font-weight: 800 !important;
-        font-size: 1.05rem !important;
-        padding: 0.95rem 1.1rem !important;
-        border: 2px solid #cbd5e1 !important;
-        border-radius: 12px !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        background: #ffffff !important;
-        display: flex !important;
-        align-items: center !important;
-        color: #1f3a5f !important;
-        letter-spacing: 0.2px !important;
-        box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
+    /* Each option becomes a bold, tappable pill */
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label{
+        font-weight:800 !important; font-size:1.08rem !important;
+        padding:0.9rem 1.05rem !important;
+        border:2px solid #cbd5e1 !important; border-radius:12px !important;
+        background:#ffffff !important; color:#1f3a5f !important;
+        cursor:pointer !important; transition:all 0.2s ease !important;
+        box-shadow:0 1px 3px rgba(15,23,42,0.06) !important;
+        display:flex !important; align-items:center !important;
     }
-    /* Hide the tiny default radio dot — the whole pill is the control */
-    div[data-testid="stSidebar"] .stRadio > div > label > div:first-child {
-        display: none !important;
+    /* Force the inner text (rendered as <p> or <div>) to be bold and large */
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label p,
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label div{
+        font-weight:800 !important; font-size:1.08rem !important; color:inherit !important;
     }
-    div[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: #eff6ff !important;
-        border-color: #2563eb !important;
-        transform: translateX(2px);
-        box-shadow: 0 3px 8px rgba(37,99,235,0.15) !important;
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover{
+        background:#eff6ff !important; border-color:#2563eb !important;
+        transform:translateX(2px);
+        box-shadow:0 3px 8px rgba(37,99,235,0.15) !important;
     }
-    div[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],
-    div[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
-        background: linear-gradient(135deg, #1f3a5f 0%, #2563eb 100%) !important;
-        color: #ffffff !important;
-        border-color: #1f3a5f !important;
-        box-shadow: 0 6px 16px rgba(31,58,95,0.35) !important;
-        transform: translateX(2px);
+    /* Selected option: bold navy->blue gradient with white text — unmistakable */
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked){
+        background:linear-gradient(135deg,#1f3a5f 0%,#2563eb 100%) !important;
+        color:#ffffff !important; border-color:#1f3a5f !important;
+        box-shadow:0 6px 16px rgba(31,58,95,0.35) !important;
+        transform:translateX(2px);
+    }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) p,
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) div{
+        color:#ffffff !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -962,6 +979,16 @@ def load_excel_data():
         
         existing_ta_renames = {k: v for k, v in ta_col_mapping.items() if k in df_ta.columns}
         df_ta = df_ta.rename(columns=existing_ta_renames)
+
+        # The sheet's first data row is an instruction/example ("Provide the given
+        # proposal ID…", project_id "New ID attribution…").  Drop it so only real
+        # TA applications remain.
+        if 'installation_id' in df_ta.columns:
+            _instr = df_ta['installation_id'].astype(str).str.startswith('Provide the given')
+            df_ta = df_ta[~_instr].reset_index(drop=True)
+        if 'project_id' in df_ta.columns:
+            _instr2 = df_ta['project_id'].astype(str).str.contains('New ID attribution', na=False)
+            df_ta = df_ta[~_instr2].reset_index(drop=True)
         
         # Extract Call information
         if 'project_id' in df_ta.columns:
@@ -1163,13 +1190,18 @@ def load_historical_va_data():
 # Format: PROJECT-C#-A# where C# is the call number
 # -------------------------------------------------------------------------
 def extract_call(project_id):
-    """Extract call number from project ID"""
+    """Extract the funding Call from a TA Project ID.
+
+    Real IDs look like ``C1_TA1-44-1_1`` -> the Call is the leading ``C<n>_``
+    token ("C1" = Call 1, "C2" = Call 2, ...).  We also tolerate the older
+    ``...-C1-...`` form, so both layouts resolve correctly.
+    """
     try:
-        match = re.search(r'-C(\d+)-', str(project_id))
-        if match:
-            return f"Call {match.group(1)}"
-        return "Unknown"
-    except:
+        m = re.search(r'(?:^|[-_\s])C(\d+)[-_]', str(project_id))   # leading or embedded C#
+        if m:
+            return f"Call {m.group(1)}"                              # -> "Call 1".."Call 4"
+        return "Unknown"                                            # no recognisable call
+    except Exception:
         return "Unknown"
 
 def extract_app_number(project_id):
@@ -2020,6 +2052,315 @@ def ta_reporting_completeness(df):
         rows.append((label, pct))
     return pd.DataFrame(rows, columns=["Field", "Completeness %"])
 
+
+# ===============================================================================================
+# TA DESCRIPTIVE OVERVIEW  (Section II) — four clean, descriptive figures for the TA "Overview".
+# Built directly from the cleaned TA frame; every helper is commented for publication.
+# ===============================================================================================
+
+# -- Call colours (Call 1..4) reused across all TA overview figures ------------------------------
+TA_CALL_COLORS = {                                   # one stable colour per funding Call
+    "Call 1": "#2563eb",                             # blue
+    "Call 2": "#0e9f6e",                             # green
+    "Call 3": "#d97706",                             # amber
+    "Call 4": "#7c3aed",                             # purple
+    "Unknown": "#94a3b8",                            # grey (should not appear for real rows)
+}
+
+# -- Project-Stage (Col H) grouped into an ORDERED lifecycle so charts stay readable -------------
+TA_STAGE_BUCKETS = [                                  # (ordered label, colour, raw stages)
+    ("0 · Dismissed",   "#dc2626", {"project dismissed"}),
+    ("1 · Negotiation", "#93c5fd", {"pi contacted", "project details negotiated"}),
+    ("2 · Scheduled",   "#60a5fa", {"time window for the visit/access fixed"}),
+    ("3 · Visit done",  "#3b82f6", {"visit/access exhausted"}),
+    ("4 · Data ready",  "#10b981", {"data/products ready", "data/products accessible"}),
+    ("5 · Reported",    "#065f46", {"project fully reported",
+                                    "ta reported to pmo by host manager"}),
+]
+TA_STAGE_ORDER  = [b[0] for b in TA_STAGE_BUCKETS]    # ordered bucket labels
+TA_STAGE_COLOR  = {b[0]: b[1] for b in TA_STAGE_BUCKETS}  # bucket -> colour
+
+
+def ta_stage_bucket(stage):
+    """Map a raw Project-Stage string to one ordered lifecycle bucket (or None)."""
+    s = str(stage).strip().lower()                   # normalise
+    for label, _c, raws in TA_STAGE_BUCKETS:         # scan the ordered buckets
+        if s in raws:                                # exact membership
+            return label                             # return the bucket label
+    return None                                      # unrecognised / empty -> drop
+
+
+def ta_real_projects(df):
+    """Return only genuine TA applications (rows whose Project ID carries a valid Call)."""
+    if df is None or df.empty or 'project_id' not in df.columns:   # nothing to do
+        return pd.DataFrame()
+    out = df.copy()                                                # work on a copy
+    if 'call' not in out.columns:                                  # derive Call if missing
+        out['call'] = out['project_id'].apply(extract_call)
+    out = out[out['call'].isin(["Call 1", "Call 2", "Call 3", "Call 4"])]  # keep real calls
+    return out.reset_index(drop=True)                              # tidy index
+
+
+# -- Free-text condition tests for the completion criteria (Figure 3 / Figure 4) ----------------
+_TA_MEANINGLESS = {"", "nan", "none", "n/a", "na", "-", "tbd", "to be determined",
+                   "to be determined.", "not yet available", "0", "0.0", "preliminary"}
+
+
+def ta_meaningful(val):
+    """True when a free-text cell carries real content (not blank / tbd / 'not yet available')."""
+    s = str(val).strip().lower()                     # normalise
+    return s not in _TA_MEANINGLESS and len(s) > 2   # must be non-trivial
+
+
+# Late lifecycle stages that count as "the access actually happened / is complete".
+_TA_COMPLETED_STAGES = {"visit/access exhausted", "project fully reported",
+                        "data/products ready", "data/products accessible",
+                        "ta reported to pmo by host manager"}
+
+
+def ta_is_completed(stage):
+    """True when the Project Stage (Col H) indicates the TA reached a completed milestone."""
+    return str(stage).strip().lower() in _TA_COMPLETED_STAGES
+
+
+def ta_is_integrated(val):
+    """True when an integration strategy (Col Y) is clearly stated (not empty / 'not accessible')."""
+    s = str(val).strip().lower()                     # normalise
+    return ta_meaningful(val) and "not accessible" not in s
+
+
+def ta_is_open_access(val):
+    """True when the Level of access (Col U) normalises to open access (handles typos)."""
+    s = str(val).strip().lower().replace(" ", "").replace("-", "")   # squash spaces/hyphens
+    return ("openacces" in s) or ("openaccess" in s) or ("willbeopen" in s)
+
+
+def ta_completion_flags(df):
+    """Attach the five boolean completion criteria to every real TA project."""
+    real = ta_real_projects(df)                      # only genuine projects
+    if real.empty:
+        return real
+    real = real.copy()
+    real['c_completed']  = real.get('project_stage', '').apply(ta_is_completed)   # important
+    real['c_metadata']   = real.get('outcome_metadata', '').apply(ta_meaningful)  # important
+    real['c_integrated'] = real.get('integration_strategy', '').apply(ta_is_integrated)  # important
+    real['c_data']       = real.get('delivered_outcomes', '').apply(ta_meaningful)       # optional
+    real['c_open']       = real.get('access_level', '').apply(ta_is_open_access)          # optional
+    # "Goal reached" = the three IMPORTANT criteria together.
+    real['goal_reached'] = real['c_completed'] & real['c_metadata'] & real['c_integrated']
+    return real
+
+
+def _ta_layout(fig, height=440):
+    """Apply the shared clean house style to a TA overview figure.
+
+    No in-figure title is set — the descriptive name is rendered as a Streamlit
+    header above each chart, which keeps the legend from overlapping a title.
+    """
+    fig.update_layout(
+        font=dict(family=FONT_FAMILY, size=TICK_FONT_SIZE, color=COLORS['dark']),
+        paper_bgcolor="white", plot_bgcolor="white",
+        height=height, margin=dict(l=10, r=10, t=46, b=10),
+        legend=dict(orientation="h", traceorder="normal",
+                    yanchor="bottom", y=1.01, xanchor="left", x=0,
+                    font=dict(size=TICK_FONT_SIZE)),
+    )
+    return fig
+
+
+# ----------------------------------------------------------------------------------------------
+# FIGURE 1 — How many TA applications per Installation, split by Call (Col A confronted with Col B)
+# ----------------------------------------------------------------------------------------------
+def fig_ta_calls_per_installation(df):
+    """Horizontal stacked bar: one row per Installation, segments coloured by Call."""
+    real = ta_real_projects(df)                                  # genuine projects only
+    if real.empty or 'installation_id' not in real.columns:     # guard
+        return None
+    real = real.copy()                                           # avoid mutating caller data
+    real['installation_id'] = (real['installation_id'].astype(str)
+                               .str.replace(r'^C\d+_', '', regex=True))  # drop stray C4_ prefix
+    ct = (real.groupby(['installation_id', 'call']).size()      # count apps per (install, call)
+              .unstack(fill_value=0))                            # installations x calls matrix
+    ct = ct.loc[ct.sum(axis=1).sort_values(ascending=True).index]   # sort by total (asc for h-bar)
+    fig = go.Figure()                                           # empty figure
+    for call in ["Call 1", "Call 2", "Call 3", "Call 4"]:      # add one trace per call
+        if call in ct.columns:                                  # only if present
+            fig.add_bar(y=ct.index, x=ct[call], name=call, orientation='h',
+                        marker_color=TA_CALL_COLORS[call])       # call-coloured segment
+    fig.update_layout(barmode='stack')                          # stack the call segments
+    fig.update_xaxes(title_text="Number of TA applications", gridcolor="#eef2f6")
+    fig.update_yaxes(title_text="")                             # installation labels speak for themselves
+    h = max(420, 22 * len(ct) + 120)                            # grow height with #installations
+    return _ta_layout(fig, height=h)
+
+
+# ----------------------------------------------------------------------------------------------
+# FIGURE 2 — Project Stage (Col H) reported (a) per Call and (b) per Installation
+# ----------------------------------------------------------------------------------------------
+def fig_ta_stage_by_call(df):
+    """100%-stacked vertical bar of lifecycle stage composition for each Call."""
+    real = ta_real_projects(df)                                 # genuine projects
+    if real.empty:
+        return None
+    real = real.copy()
+    real['bucket'] = real.get('project_stage', '').apply(ta_stage_bucket)   # bucket the stage
+    real = real[real['bucket'].notna()]                          # keep classifiable rows
+    if real.empty:
+        return None
+    ct = (real.groupby(['call', 'bucket']).size().unstack(fill_value=0))    # call x bucket
+    ct = ct.reindex(columns=TA_STAGE_ORDER, fill_value=0)        # enforce lifecycle order
+    pct = ct.div(ct.sum(axis=1), axis=0) * 100                   # convert to % within each call
+    fig = go.Figure()                                           # build stacked bar
+    for bucket in TA_STAGE_ORDER:                               # one trace per stage bucket
+        fig.add_bar(x=pct.index, y=pct[bucket], name=bucket,
+                    marker_color=TA_STAGE_COLOR[bucket])
+    fig.update_layout(barmode='stack')                          # stack stages
+    fig.update_yaxes(title_text="Share of projects (%)", range=[0, 100], gridcolor="#eef2f6")
+    return _ta_layout(fig, height=440)
+
+
+def fig_ta_stage_by_installation(df):
+    """Horizontal stacked bar of stage composition (counts) for each Installation."""
+    real = ta_real_projects(df)                                 # genuine projects
+    if real.empty:
+        return None
+    real = real.copy()
+    real['installation_id'] = (real['installation_id'].astype(str)
+                               .str.replace(r'^C\d+_', '', regex=True))  # drop stray C4_ prefix
+    real['bucket'] = real.get('project_stage', '').apply(ta_stage_bucket)   # bucket the stage
+    real = real[real['bucket'].notna()]                          # classifiable only
+    if real.empty:
+        return None
+    ct = (real.groupby(['installation_id', 'bucket']).size().unstack(fill_value=0))  # install x bucket
+    ct = ct.reindex(columns=TA_STAGE_ORDER, fill_value=0)        # lifecycle order
+    ct = ct.loc[ct.sum(axis=1).sort_values(ascending=True).index]   # sort by total
+    fig = go.Figure()                                           # stacked horizontal bar
+    for bucket in TA_STAGE_ORDER:                               # one trace per stage
+        fig.add_bar(y=ct.index, x=ct[bucket], name=bucket, orientation='h',
+                    marker_color=TA_STAGE_COLOR[bucket])
+    fig.update_layout(barmode='stack')                          # stack stages
+    fig.update_xaxes(title_text="Number of projects", gridcolor="#eef2f6")
+    h = max(420, 22 * len(ct) + 120)                            # grow with #installations
+    return _ta_layout(fig, height=h)
+
+
+# ----------------------------------------------------------------------------------------------
+# FIGURE 3 — Completion pipeline: cumulative criteria (Complete & Metadata & Integration, +Data, +Open)
+# ----------------------------------------------------------------------------------------------
+def fig_ta_completion_funnel(df):
+    """Funnel of how many TA projects pass each cumulative criterion (important then optional)."""
+    real = ta_completion_flags(df)                              # attach boolean criteria
+    if real.empty:
+        return None
+    n_all  = len(real)                                          # all genuine projects
+    n_comp = int(real['c_completed'].sum())                     # completed (important)
+    n_meta = int((real['c_completed'] & real['c_metadata']).sum())                       # +metadata (important)
+    n_int  = int((real['c_completed'] & real['c_metadata'] & real['c_integrated']).sum()) # +integration (important)
+    n_data = int((real['c_completed'] & real['c_metadata'] & real['c_integrated']
+                  & real['c_data']).sum())                       # +data (optional)
+    n_open = int((real['c_completed'] & real['c_metadata'] & real['c_integrated']
+                  & real['c_data'] & real['c_open']).sum())      # +open access (optional)
+    labels = ["All TA projects", "Completed (Stage)", "+ Metadata", "+ Integration",
+              "+ Data delivered", "+ Open access"]               # funnel stages
+    values = [n_all, n_comp, n_meta, n_int, n_data, n_open]      # survivors at each gate
+    colors = ["#94a3b8", "#2563eb", "#1d4ed8", "#1e3a8a",        # important gates = blues
+              "#0e9f6e", "#065f46"]                              # optional gates = greens
+    fig = go.Figure(go.Funnel(
+        y=labels, x=values, marker=dict(color=colors),
+        textposition="inside", textinfo="value+percent initial",
+        connector=dict(line=dict(color="#cbd5e1", width=1)),
+    ))
+    return _ta_layout(fig, height=460)
+
+
+# ----------------------------------------------------------------------------------------------
+# FIGURE 4 — World map of TA per country (Col G affiliation), + per-Call goal monitoring
+# ----------------------------------------------------------------------------------------------
+# Country resolver (dependency-free): explicit country names/codes first, then institution keywords.
+_TA_COUNTRY_TERMS = {
+    'germany': 'Germany', 'deutschland': 'Germany', 'italy': 'Italy', 'italia': 'Italy',
+    'france': 'France', 'spain': 'Spain', 'españa': 'Spain', 'greece': 'Greece', 'hellas': 'Greece',
+    'portugal': 'Portugal', 'denmark': 'Denmark', 'iceland': 'Iceland', 'switzerland': 'Switzerland',
+    'belgium': 'Belgium', 'poland': 'Poland', 'romania': 'Romania', 'rumania': 'Romania',
+    'albania': 'Albania', 'israel': 'Israel', 'turkey': 'Turkey', 'turkiye': 'Turkey',
+    'türkiye': 'Turkey', 'morocco': 'Morocco', 'chile': 'Chile', 'colombia': 'Colombia',
+    'india': 'India', 'pakistan': 'Pakistan', 'taiwan': 'Taiwan', 'philippines': 'Philippines',
+    'new zealand': 'New Zealand', '(nz)': 'New Zealand', 'slovak': 'Slovakia',
+    'united kingdom': 'United Kingdom', '(uk)': 'United Kingdom', 'usa': 'United States',
+    '(pt)': 'Portugal', 'north macedonia': 'North Macedonia', 'macedonia': 'North Macedonia',
+}
+_TA_INSTITUTION_TERMS = {
+    'gfz': 'Germany', 'potsdam': 'Germany', 'karlsruhe': 'Germany', 'bochum': 'Germany',
+    'geotomographie': 'Germany', 'ifremer': 'France', 'ineris': 'France', 'géoazur': 'France',
+    'geoazur': 'France', 'sorbonne': 'France', 'physique du globe de paris': 'France',
+    'latmos': 'France', "cote d'azur": 'France', 'ingv': 'Italy', 'ogs': 'Italy', 'sapien': 'Italy',
+    'napoli': 'Italy', 'federico ii': 'Italy', 'pisa': 'Italy', 'trieste': 'Italy',
+    'oceanografia': 'Italy', 'forth': 'Greece', 'patras': 'Greece',
+    'national observatory of athens': 'Greece', 'noa': 'Greece', 'incois': 'India', 'ipma': 'Portugal',
+    'azores': 'Portugal', 'iziis': 'North Macedonia', 'cantabria': 'Spain', 'complutense': 'Spain',
+    'santa maría': 'Chile', 'santísima concepción': 'Chile', 'niep': 'Romania',
+    'national institute for earth physics': 'Romania', 'usgs': 'United States',
+    'monterey': 'United States', 'buffalo': 'United States', 'california': 'United States',
+    'san josé': 'United States', 'san jose': 'United States', 'louisiana': 'United States',
+    'texas': 'United States', 'university of georgia': 'United States', 'silixa': 'United Kingdom',
+    'british geological': 'United Kingdom', 'manchester': 'United Kingdom',
+    'edimburgh': 'United Kingdom', 'edinburgh': 'United Kingdom', 'cadi ayyad': 'Morocco',
+    'essaadi': 'Morocco', ' ensa': 'Morocco', 'bogazici': 'Turkey', 'tel aviv': 'Israel',
+    'geological survey of israel': 'Israel', 'geneva': 'Switzerland', 'iceland': 'Iceland',
+    'bruxelles': 'Belgium', 'wroclaw': 'Poland', 'ned university': 'Pakistan', 'karachi': 'Pakistan',
+    'colombian': 'Colombia', 'slovak academy': 'Slovakia', 'aalborg': 'Denmark',
+    'academy of sciences of albania': 'Albania', 'national taiwan': 'Taiwan',
+    'philippines': 'Philippines',
+}
+
+
+def resolve_ta_country(affiliation):
+    """Best-effort country of the PI affiliation (Col G); returns a country name or None."""
+    if affiliation is None:
+        return None
+    s = str(affiliation).strip().lower()             # normalise
+    if not s or s == 'nan':
+        return None
+    for term, country in _TA_COUNTRY_TERMS.items():  # 1) explicit country names / ISO codes
+        if term in s:
+            return country
+    for term, country in _TA_INSTITUTION_TERMS.items():  # 2) known institutions / cities
+        if term in s:
+            return country
+    return None                                      # unresolved (shown as 'Unknown' if needed)
+
+
+def fig_ta_world_map(df):
+    """Choropleth of TA-per-country; colour = total TA, hover also shows goals reached."""
+    real = ta_completion_flags(df)                   # genuine projects + goal flags
+    if real.empty or 'pi_affiliation' not in real.columns:
+        return None
+    real = real.copy()
+    real['country'] = real['pi_affiliation'].apply(resolve_ta_country)   # resolve country
+    real = real[real['country'].notna()]             # keep mapped rows
+    if real.empty:
+        return None
+    agg = (real.groupby('country')                    # per country:
+                .agg(total=('country', 'size'),       #   total TA
+                     goals=('goal_reached', 'sum'))    #   goals reached (Complete+Meta+Integr)
+                .reset_index())
+    fig = go.Figure(go.Choropleth(
+        locations=agg['country'], locationmode="country names",   # match by country name
+        z=agg['total'], colorscale=[[0, "#eef4fb"], [0.5, "#5b9bd5"], [1, "#1f3a5f"]],
+        marker_line_color="white", marker_line_width=0.6,
+        colorbar=dict(title="TA count"),
+        customdata=agg[['goals']],                                  # extra hover field
+        hovertemplate="<b>%{location}</b><br>TA projects: %{z}"
+                      "<br>Goals reached: %{customdata[0]}<extra></extra>",
+    ))
+    fig.update_geos(showframe=False, showcoastlines=True, coastlinecolor="#cbd5e1",
+                    projection_type="natural earth", bgcolor="white")
+    fig.update_layout(
+        font=dict(family=FONT_FAMILY), height=480, margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor="white",
+    )
+    return fig
+
 # ===============================================================================================
 # COLUMN SOURCE MAPPING — Maps internal column names to original ILM table column names
 # ===============================================================================================
@@ -2069,28 +2410,35 @@ VA_COLUMN_SOURCES = {
 }
 
 TA_COLUMN_SOURCES = {
-    'project_id': 'Project ID',
-    'pi_gender': 'PI Gender',
-    'project_title': 'Project title',
-    'project_acronym': 'Project acronym',
-    'ta_host': 'TA host',
-    'pi_affiliation': 'PI Affiliation',
-    'project_stage': 'Project Stage (completed milestone)',
-    'stage_updated': 'Stage updated on',
-    'visit_start': 'Start of the Visit/Access',
-    'visit_end': 'End of the Visit/Access',
-    'unit_of_access': 'Unit of access',
-    'units_requested': 'Number of units requested',
-    'number_of_users': 'Number of Users',
-    'units_used': 'Number of units used',
-    'expected_outcomes': 'Expected assets as outcomes',
-    'delivered_outcomes': 'Delivered assets as outcomes',
-    'access_level': 'Level of access',
-    'associated_wp': 'Associated WP',
-    'associated_va': 'Associated VA',
-    'associated_ri': 'Associated RI',
-    'integration_strategy': 'Expected strategy of integration',
-    'call': 'Project ID (derived: Call number)',
+    # ILM_Connector_TA sheet — headers in row 4. Format: "Col <letter> · <header>".
+    'installation_id':      'Col A · Installation ID',
+    'project_id':           'Col B · Project ID',
+    'pi_gender':            'Col C · PI Gender',
+    'project_title':        'Col D · Project title',
+    'project_acronym':      'Col E · Project acronym',
+    'ta_host':              'Col F · TA host',
+    'pi_affiliation':       'Col G · PI Affiliation',
+    'project_stage':        'Col H · Project Stage (completed milestone)',
+    'stage_updated':        'Col I · Stage updated on',
+    'stage_comments':       'Col J · Comments to the stage',
+    'visit_start':          'Col K · Start of the Visit/Access',
+    'visit_end':            'Col L · End of the Visit/Access',
+    'unit_of_access':       'Col M · Unit of access',
+    'units_requested':      'Col N · Number of units requested',
+    'number_of_users':      'Col O · Number of Users',
+    'units_used':           'Col P · Number of units used',
+    'activity_description': 'Col Q · Short description of the activity',
+    'expected_outcomes':    'Col R · Expected assets as outcomes',
+    'delivered_outcomes':   'Col S · Delivered assets as outcomes',
+    'outcome_metadata':     'Col T · Metadata of the outcome',
+    'access_level':         'Col U · Level of access',
+    'associated_wp':        'Col V · Associated WP',
+    'associated_va':        'Col W · Associated VA',
+    'associated_ri':        'Col X · Associated RI',
+    'integration_strategy': 'Col Y · Expected strategy of integration',
+    'asset_link':           'Col Z · Actual link to asset produced',
+    'provider_contact':     'Col AA · Service provider contact',
+    'call':                 'Derived from Col B (Project ID prefix C1_/C2_…)',
 }
 
 
@@ -3225,129 +3573,84 @@ if selected == "Dashboard":
             with c4:
                 st.markdown(f"<div class='kpi'><h3>Assets Exposed</h3><div class='val'>{int(exposure_rate)}%</div></div>", unsafe_allow_html=True)
 
+            # =================================================================
+            # DESCRIPTIVE TA OVERVIEW — clean, elegant, download-ready figures.
+            # Each block: a section header, the figure, a 300-DPI download
+            # button, and a source-column caption (consistent with the VA pages).
+            # =================================================================
             st.markdown("---")
-            st.markdown("## Outcomes & Access")
+            st.markdown("## Descriptive Overview")
             st.caption(
-                "TA projects are grouped by funding Call. These panels focus on what each "
-                "access actually produced — delivered outcomes, where assets are exposed, "
-                "the level of access granted, and how outputs integrate with the RIs."
+                "Descriptive views of the Transnational Access programme: applications per "
+                "installation, project-stage progress, the completion pipeline, and the "
+                "geographic spread of TA users."
             )
 
-            # ── Row 1: Project-stage funnel | Data-exposure status ──────────
-            col1, col2 = st.columns(2)
-            with col1:
-                def _builder(_df, _yr):
-                    stage_clean = _df['project_stage'].dropna().astype(str).str.strip() if 'project_stage' in _df.columns else pd.Series(dtype=str)
-                    stage_clean = stage_clean[~stage_clean.str.lower().isin(_TA_BOGUS)]
-                    if stage_clean.empty:
-                        return None
-                    stage_data = (stage_clean.value_counts()
-                                  .rename_axis('Stage').reset_index(name='Count'))
-                    stage_color_map = {
-                        'Visit/access exhausted': COLORS['exhausted'],
-                        'Time window for the visit/access fixed': COLORS['fixed'],
-                        'Data/products ready': COLORS['ready'],
-                        'PI contacted': COLORS['contacted'],
-                        'Project details negotiated': COLORS['negotiated'],
-                    }
-                    return create_professional_donut_chart(stage_data, 'Stage', 'Count',
-                                                           'Project Stage (lifecycle)',
-                                                           color_map=stage_color_map)
-                render_in_call_tabs(_builder, figure_key="ta_stage",
-                                    ta_dataframe=ta_df, source_cols=["project_stage"],
-                                    download_label_base="ta_stage",
-                                    figure_title="Project Stage")
-            with col2:
-                def _builder(_df, _yr):
-                    if _df.empty:
-                        return None
-                    exp = _df.apply(ta_data_exposure_status, axis=1)
-                    exp_data = exp.value_counts().rename_axis('Status').reset_index(name='Count')
-                    color_map = {
-                        'Asset linked (DOI/URL)': COLORS['success'],
-                        'In progress':            COLORS['warning'],
-                        'Described, no link':     COLORS['accent'],
-                        'Not reported':           COLORS['unknown'],
-                    }
-                    return create_professional_donut_chart(exp_data, 'Status', 'Count',
-                                                           'Data Exposure of Produced Assets',
-                                                           color_map=color_map)
-                render_in_call_tabs(_builder, figure_key="ta_exposure",
-                                    ta_dataframe=ta_df,
-                                    source_cols=["delivered_outcomes", "outcome_metadata"],
-                                    download_label_base="ta_exposure",
-                                    figure_title="Data Exposure")
+            # ── Applications per installation, by Call ──────────────────────
+            st.markdown("#### Applications per Installation, by Call")
+            fig1 = fig_ta_calls_per_installation(ta_df)
+            if fig1 is not None:
+                st.plotly_chart(fig1, use_container_width=True, key="ta_ov_calls")
+                create_download_button(fig1, "ta_applications_per_installation")
+                add_source_annotation(["installation_id", "project_id"], access_type="TA")
+            else:
+                st.caption("No TA applications with a recognised Call yet.")
 
             st.markdown("---")
 
-            # ── Row 2: Access level | Integration strategy ──────────────────
-            col1, col2 = st.columns(2)
-            with col1:
-                def _builder(_df, _yr):
-                    if 'access_level' not in _df.columns:
-                        return None
-                    lvl = _df['access_level'].apply(ta_normalize_access_level).dropna()
-                    if lvl.empty:
-                        return None
-                    lvl_data = lvl.value_counts().rename_axis('Level').reset_index(name='Count')
-                    color_map = {
-                        'Open access':       COLORS['success'],
-                        'Embargoed':         COLORS['warning'],
-                        'Restricted':        COLORS['danger'],
-                        'To be determined':  COLORS['unknown'],
-                        'Other':             COLORS['accent'],
-                    }
-                    return create_professional_donut_chart(lvl_data, 'Level', 'Count',
-                                                           'Level of Access',
-                                                           color_map=color_map)
-                render_in_call_tabs(_builder, figure_key="ta_access",
-                                    ta_dataframe=ta_df, source_cols=["access_level"],
-                                    download_label_base="ta_access",
-                                    figure_title="Level of Access")
-            with col2:
-                def _builder(_df, _yr):
-                    if 'integration_strategy' not in _df.columns:
-                        return None
-                    integ = _df['integration_strategy'].apply(ta_normalize_integration).dropna()
-                    if integ.empty:
-                        return None
-                    integ_data = (integ.value_counts()
-                                  .rename_axis('Strategy').reset_index(name='Count')
-                                  .sort_values('Count', ascending=True))
-                    return create_professional_bar_chart(integ_data, 'Count', 'Strategy',
-                                                         'Integration Strategy (asset destination)',
-                                                         orientation='h',
-                                                         color_palette=COLORS['blue_palette'])
-                render_in_call_tabs(_builder, figure_key="ta_integration",
-                                    ta_dataframe=ta_df, source_cols=["integration_strategy"],
-                                    download_label_base="ta_integration",
-                                    figure_title="Integration Strategy")
-
-            st.markdown("---")
-
-            # ── Row 3: Reporting / metadata completeness (full width) ───────
-            st.markdown("### Reporting & Metadata Completeness")
+            # ── Project-stage progress (per Call and per Installation) ───────
+            st.markdown("#### Project-stage Progress")
             st.caption(
-                "How completely each stage of the TA lifecycle is recorded, as a share of "
-                "projects in the selected Call — a proxy for metadata quality and follow-up."
+                "Lifecycle stage (Col H) grouped from Dismissed -> Negotiation -> Scheduled -> "
+                "Visit done -> Data ready -> Reported. Left: share within each Call. "
+                "Right: counts per installation."
             )
-            def _builder(_df, _yr):
-                comp = ta_reporting_completeness(_df)
-                if comp.empty or comp['Completeness %'].sum() == 0:
-                    return None
-                comp = comp.sort_values('Completeness %', ascending=True)
-                fig = create_professional_bar_chart(comp, 'Completeness %', 'Field',
-                                                    'Lifecycle Field Completeness (%)',
-                                                    orientation='h',
-                                                    color_palette=COLORS['green_palette'])
-                fig.update_layout(xaxis=dict(range=[0, 100]))
-                return fig
-            render_in_call_tabs(_builder, figure_key="ta_completeness",
-                                ta_dataframe=ta_df,
-                                source_cols=["expected_outcomes", "delivered_outcomes",
-                                             "outcome_metadata"],
-                                download_label_base="ta_completeness",
-                                figure_title="Reporting Completeness")
+            colA, colB = st.columns([0.42, 0.58])
+            with colA:
+                fig2a = fig_ta_stage_by_call(ta_df)
+                if fig2a is not None:
+                    st.plotly_chart(fig2a, use_container_width=True, key="ta_ov_stage_call")
+                    create_download_button(fig2a, "ta_stage_by_call")
+            with colB:
+                fig2b = fig_ta_stage_by_installation(ta_df)
+                if fig2b is not None:
+                    st.plotly_chart(fig2b, use_container_width=True, key="ta_ov_stage_inst")
+                    create_download_button(fig2b, "ta_stage_by_installation")
+            add_source_annotation(["project_stage"], access_type="TA")
+
+            st.markdown("---")
+
+            # ── Completion pipeline (cumulative criteria) ───────────────────
+            st.markdown("#### Completion Pipeline")
+            st.caption(
+                "Cumulative criteria. **Important** (all required to count as a reached goal): "
+                "the TA is **Completed** (Col H), has **Metadata** (Col T) and a clear "
+                "**Integration** strategy (Col Y, not 'Not accessible'). **Optional** layers add "
+                "**Data delivered** (Col S) and **Open access** (Col U)."
+            )
+            fig3 = fig_ta_completion_funnel(ta_df)
+            if fig3 is not None:
+                st.plotly_chart(fig3, use_container_width=True, key="ta_ov_funnel")
+                create_download_button(fig3, "ta_completion_pipeline")
+                add_source_annotation(
+                    ["project_stage", "outcome_metadata", "integration_strategy",
+                     "delivered_outcomes", "access_level"], access_type="TA")
+
+            st.markdown("---")
+
+            # ── Geographic spread of TA users ───────────────────────────────
+            st.markdown("#### Geographic Spread of TA Users")
+            st.caption(
+                "TA projects by the PI's country (resolved from Col G). Colour = number of TA "
+                "projects; hover also shows how many reached the goal (Completed + Metadata + "
+                "Integration)."
+            )
+            fig4 = fig_ta_world_map(ta_df)
+            if fig4 is not None:
+                st.plotly_chart(fig4, use_container_width=True, key="ta_ov_map")
+                create_download_button(fig4, "ta_world_map_by_country")
+                add_source_annotation(["pi_affiliation", "ta_host"], access_type="TA")
+
         else:
             st.warning("No Transnational Access data available")
 
