@@ -1,145 +1,127 @@
+<p align="center">
+  <img src="Logo.jpg" alt="Geo-INQUIRE logo" width="320">
+</p>
+
 # ILM Geo-INQUIRE Dashboard
 
-## Overview
-Professional Implementation Level Matrix (ILM) Dashboard for the Geo-INQUIRE project at the University of Bergen.
+Implementation Level Matrix (ILM) monitoring dashboard for the **Geo-INQUIRE**
+project. It tracks the maturity of **Virtual Access (VA)** services and the
+progress of **Transnational Access (TA)** projects, for the research team and
+project reporting.
 
-## Features
-- 🔐 Password-protected access
-- 📊 Real-time data integration with Google Sheets
-- 📈 Comprehensive Virtual Access and Transnational Access analytics
-- 🎯 KPI tracking and monitoring
-- 💾 Professional chart exports (300 DPI)
-
-## Installation
-
-### Prerequisites
-- Python 3.8 or higher
-- Google Sheets API credentials
-
-### Setup
-1. Clone this repository
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/ilm-dashboard.git
-   cd ilm-dashboard
-   ```
-
-2. Install dependencies
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Add your Google Sheets credentials
-   - Get your service account JSON file from Google Cloud Console
-   - Place it in the project folder
-   - Or configure secrets (for Streamlit Cloud deployment)
-
-4. Run the dashboard
-   ```bash
-   streamlit run ilm_dashboard_app_v2_FINAL.py
-   ```
-
-## Usage
-
-### Login
-- Password: Contact project administrator
-
-### Navigation
-- **Dashboard** - Overview and key metrics
-- **Analytics** - Detailed analysis and trends
-- **KPI** - Key Performance Indicators
-- **Data** - Raw data tables
-- **Contact** - Project information
-
-### Switching Projects
-Use the sidebar to toggle between:
-- Virtual Access
-- Transnational Access
-
-## Data Sources
-- **Primary:** Google Sheets (auto-refresh every 5 minutes)
-- **Fallback:** Excel file (ILM_Python_2.xlsx)
-
-## Deployment
-
-### Streamlit Community Cloud
-1. Push code to GitHub
-2. Sign up at https://streamlit.io/cloud
-3. Connect your repository
-4. Configure secrets (Google Sheets credentials)
-5. Deploy!
-
-See `STREAMLIT_DEPLOYMENT_GUIDE.md` for detailed instructions.
-
-## Documentation
-- `FINAL_DELIVERY_SUMMARY.md` - Complete overview
-- `GIT_DEPLOYMENT_GUIDE.md` - Git setup and workflow
-- `STREAMLIT_DEPLOYMENT_GUIDE.md` - Cloud deployment
-- `QUICK_REFERENCE.md` - Quick tips and solutions
-
-## Development
-
-### Project Structure
-```
-ilm-dashboard/
-├── ilm_dashboard_app_v2_FINAL.py    # Main application
-├── requirements.txt                  # Python dependencies
-├── README.md                         # This file
-├── .gitignore                        # Git ignore rules
-└── .streamlit/                       # Streamlit configuration
-    └── secrets.toml                  # Credentials (not in Git!)
-```
-
-### Making Changes
-1. Create a feature branch
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-
-2. Make your changes
-
-3. Test locally
-   ```bash
-   streamlit run ilm_dashboard_app_v2_FINAL.py
-   ```
-
-4. Commit and push
-   ```bash
-   git add .
-   git commit -m "Description of changes"
-   git push origin feature/your-feature
-   ```
-
-5. Create Pull Request on GitHub
-
-## Security
-- ⚠️ Never commit credentials (.json files)
-- ⚠️ Keep `.gitignore` up to date
-- ⚠️ Use Streamlit secrets for cloud deployment
-- ⚠️ Rotate credentials regularly
-
-## Copyright
-© 2024-2025 Geo-INQUIRE Project  
-University of Bergen, Norway
-
-Developed by: Juliano and Claude AI Assistant
-
-## License
-Internal use - Geo-INQUIRE Project
-
-## Contact
-Geo-INQUIRE Project Administration  
-University of Bergen, Norway
-
-## Version
-**Version:** 2.0 FINAL  
-**Last Updated:** November 11, 2025
-
-## Support
-For issues or questions:
-- Check documentation in `/docs` folder
-- Review troubleshooting guides
-- Contact project administrator
+> Funded by the European Union — Horizon Europe, Grant Agreement No. **101058518**
+> (Geo-INQUIRE). 
 
 ---
 
-**Ready to deploy?** See `STREAMLIT_DEPLOYMENT_GUIDE.md` to get started! 🚀
+## Features
+
+- 🔐 Password-protected access (session-based)
+- 📡 ILM - Live Google Sheets integration, with an Excel snapshot as automatic fallback
+- 📊 VA analytics — implementation status, RI coverage, and a **TRL maturity matrix** (1–9)
+- 🌍 TA descriptive overview — applications per installation, project-stage progress,
+  a completion pipeline, and a world map of TA users
+- 🎯 KPI tracking (test users, datasets, uptime, …)
+- 🧾 Every figure cites its source spreadsheet column and exports as **300-DPI PNG**
+- 🗂️ Year tabs (2023–2026) for VA, from frozen yearly snapshots
+
+## Tech stack
+
+Python · Streamlit · Plotly · pandas · openpyxl · kaleido
+
+---
+
+## Installation
+
+**Prerequisites:** Python 3.9+ and (for live data) a Google service-account key.
+
+```bash
+git clone https://github.com/YOUR_USERNAME/ILM.git
+cd ILM
+pip install -r requirements.txt
+streamlit run ilm_dashboard_app.py
+```
+
+Credentials are read from `.streamlit/secrets.toml` locally and from **Streamlit
+Secrets** in the cloud. A real key file is **never** committed (see *Security*).
+
+---
+
+## Usage
+
+**Pages**
+
+| Page | Purpose |
+|------|---------|
+| Dashboard | Overview and key metrics |
+| Analytics | Detailed analysis, RI matrix, TRL maturity |
+| KPI | Key Performance Indicators |
+| Data | Raw data tables with readable headers |
+| Contact | Project information |
+
+**Switch project** in the sidebar: *Virtual Access* ↔ *Transnational Access*.
+The available tabs and figures adapt to the selected project.
+
+---
+
+## Data sources
+
+- **Primary:** Google Sheet from the ILM table and mirrored — tabs `ILM_Connector` (VA) and `ILM_Connector_TA` (TA),
+  read via the Google Sheets API.
+- **Fallback:** `ILM_Python_2.xlsx` (same two tabs).
+- **History:** frozen yearly snapshots in `ILM_Old/` feed the VA year tabs.
+
+---
+
+## Deployment (Streamlit Community Cloud)
+
+1. Push to GitHub (include `ILM_Python_2.xlsx` and `ILM_Old/*.xlsx` — they may be
+   skipped by `.gitignore`, so add with `git add -f`).
+2. Connect the repo at <https://share.streamlit.io>.
+3. Add the service-account block under **Settings → Secrets**.
+4. **Reboot** the app after any change to data loaders, cache signatures, or
+   `requirements.txt`.
+
+---
+
+## Project structure
+
+```
+ILM/
+├── ilm_dashboard_app.py      # main application
+├── requirements.txt          # dependencies (kaleido pinned for PNG export)
+├── ILM_Python_2.xlsx         # data snapshot / Excel fallback
+├── ILM_Old/                  # frozen yearly snapshots (VA year tabs)
+├── README.md
+├── .gitignore
+└── .streamlit/
+    ├── config.toml           # light theme
+    └── secrets.toml          # credentials — NOT in Git
+```
+
+---
+
+## Security
+
+- ⚠️ Never commit credentials — keep `*.json` and `.streamlit/secrets.toml` out of Git.
+- ⚠️ Use Streamlit Secrets for cloud deployment; reboot after updating them.
+- ⚠️ Rotate the service-account key periodically.
+
+---
+
+## Authors & license
+
+Developed by **Juliano Ramanantsoa** (assisted by Claude),
+University of Bergen.
+
+- **Code / software:** open source under the [MIT License](LICENSE).
+- **ILM data & content:** internal to the Geo-INQUIRE Project (not covered by the
+  MIT license).
+
+© 2024–2026 Juliano Ramanantsoa, Geo-INQUIRE Project,
+University of Bergen.
+Contact: heriniaina.j.ramanantsoa@uib.no
+
+**Version 2.3** · June 2026
+
+---
